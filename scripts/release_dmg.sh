@@ -22,7 +22,11 @@ spctl -a -vv -t exec "$APP" 2>&1 | grep -q "Notarized Developer ID" || fail "Gat
 mkdir -p "$WORK/stage" "$OUT"; ditto "$APP" "$WORK/stage/GDC Metadata.app"
 cp "$HERE/LICENSE" "$HERE/NOTICE" "$HERE/THIRD_PARTY_NOTICES.md" "$WORK/stage/"; cp "$HERE/app/Resources/GDCMetadata.icns" "$WORK/stage/.VolumeIcon.icns"; SetFile -a C "$WORK/stage" 2>/dev/null || true
 ln -s /Applications "$WORK/stage/Applications"
-rm -f "$DMG"; hdiutil create -volname "GDC Metadata $VERSION" -srcfolder "$WORK/stage" -fs HFS+ -format UDZO -ov "$DMG" >/dev/null
+rm -f "$DMG"; RW="$WORK/rw.dmg"; hdiutil create -volname "GDC Metadata $VERSION" -srcfolder "$WORK/stage" -fs HFS+ -format UDRW -ov "$RW" >/dev/null
+# volume icon: the custom-icon flag must be set on the MOUNTED volume (it is not preserved through -srcfolder)
+mkdir -p "$WORK/rwmnt"; hdiutil attach "$RW" -mountpoint "$WORK/rwmnt" -nobrowse >/dev/null
+cp "$HERE/app/Resources/GDCMetadata.icns" "$WORK/rwmnt/.VolumeIcon.icns"; SetFile -a C "$WORK/rwmnt"; SetFile -a V "$WORK/rwmnt/.VolumeIcon.icns" 2>/dev/null || true
+sync; hdiutil detach "$WORK/rwmnt" -quiet; hdiutil convert "$RW" -format UDZO -o "$DMG" >/dev/null
 codesign --force --sign "$SIGN_IDENTITY" --timestamp "$DMG"; notarize "$DMG"
 xcrun stapler staple "$DMG" >/dev/null; xcrun stapler validate "$DMG" >/dev/null
 spctl -a -vv -t open --context context:primary-signature "$DMG" 2>&1 | grep -q "Notarized Developer ID" || fail "Gatekeeper rejects DMG"
