@@ -87,14 +87,14 @@ struct ContentView: View {
                 if s.busy { ProgressView().controlSize(.small); Text(L.t("op.running")).font(.caption).foregroundStyle(.secondary) }
             }
             HStack(spacing: 8) {
-                Button(L.t("act.accept")) { let sk = s.acceptDetected(s.selection); if sk > 0 { exportMsg = L.f("batch.skipped", sk) } }
+                Button(L.t("act.accept")) { let sk = s.acceptDetected(s.selection); if sk > 0 { exportMsg = L.f("batch.skipped", sk) } }.accessibilityLabel(L.t("act.accept"))
                     .disabled(n == 0).help(L.t("act.accept.help"))
-                Button(L.t("act.revoke")) { s.revoke(s.selection) }.disabled(!s.selection.contains { s.confirmedBase[$0] != nil })
+                Button(L.t("act.revoke")) { s.revoke(s.selection) }.disabled(!s.selection.contains { s.confirmedBase[$0] != nil }).accessibilityLabel(L.t("act.revoke"))
                 Spacer()
             }
             HStack(spacing: 8) {
-                Button(L.t("act.remove")) { s.removeSelected() }.disabled(n == 0).help(L.t("act.remove.help"))
-                Button(L.t("clear.list")) { s.clearList() }.help(L.t("act.clear.help"))
+                Button(L.t("act.remove")) { s.removeSelected() }.disabled(n == 0).help(L.t("act.remove.help")).accessibilityLabel(L.t("act.remove"))
+                Button(L.t("clear.list")) { s.clearList() }.help(L.t("act.clear.help")).accessibilityLabel(L.t("clear.list"))
                 Spacer()
             }
             HStack(spacing: 8) {
@@ -106,6 +106,7 @@ struct ContentView: View {
                     .disabled(n == 0 || s.busy).fixedSize()
                 Button { s.showResolve = true; Task { await s.loadResolvePlan() } } label: { Label(n == 0 ? L.t("resolve.send") : n == 1 ? L.t("act.send.1") : L.f("act.send.n", n), systemImage: "paperplane.fill").font(.callout.weight(.semibold)) }
                     .buttonStyle(.borderedProminent).tint(Theme.accent).disabled(n == 0 || s.busy)
+                    .accessibilityLabel(n == 0 ? L.t("resolve.send") : n == 1 ? L.t("act.send.1") : L.f("act.send.n", n))
                 Spacer()
             }
         }

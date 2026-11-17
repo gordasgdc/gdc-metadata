@@ -3,7 +3,7 @@
 One row per make|model|container+readers; a representative clip (most confirmed fields). Output is INTERNAL (clip names are private)."""
 import json, subprocess, sys
 core, out, roots = sys.argv[1], sys.argv[2], sys.argv[3:]
-FIELDS = ["make","camera_model","lens","focal_length","focal_eq","focus_distance","focus_mode","ae_mode","aperture","iso","shutter","wb_mode","wb_temp","tint","picture_profile","curve","gamut","timecode"]
+FIELDS = ["make","camera_model","lens","focal_length","focal_eq","focus_distance","af_area","focus_mode","ae_mode","aperture","iso","shutter","wb_mode","wb_temp","tint","picture_profile","curve","gamut","timecode"]
 rows = {}
 p = subprocess.Popen([core, "scan"] + roots, stdout=subprocess.PIPE, text=True)
 for line in p.stdout:

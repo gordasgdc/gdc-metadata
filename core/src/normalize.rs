@@ -271,7 +271,25 @@ fn fill_from_sony(out: &mut Vec<Field>, so: &Sony) {
     if let Some(mm) = r.focal_mm { if mm > 0.0 { put(out, ff(dec("focal_length", "camera", format!("{} mm", trim_num(mm, 1)), "rtmd 0x8005", Value::from(mm), so))); } }
     if let Some(mm) = r.focal_eq_mm { if mm > 0.0 { add(out, ff(dec("focal_eq", "camera", format!("{} mm", trim_num(mm, 1)), "rtmd 0x8004", Value::from(mm), so))); } }
     if let Some(m) = r.focus_m { if m > 0.0 { add(out, ff(dec("focus_distance", "camera", format!("{} m", trim_num(m, 2)), "rtmd 0x8001", Value::from(m), so))); } }
-    if let Some(a) = r.af_area { add(out, ff(dec("focus_mode", "camera", a.to_string(), "rtmd 0x8101", Value::from(a), so))); }
+    if let Some(a) = r.af_area { add(out, ff(dec("af_area", "camera", a.to_string(), "rtmd 0x8101", Value::from(a), so))); }
+    // focus mode (AF-S / AF-C / MF) has no verified source in rtmd: kept as a distinct, unfilled field
+    if so.model.is_some() { add(out, Field { id: "focus_mode".into(), section: "camera".into(), value: None, status: Status::Unavailable, primary: None, alternates: vec![], note: Some("sony_no_focusmode".into()) }); }
+    // technical acquisition details (first rtmd sample); values compared with Sony Catalyst Browse on clip _294
+    if let Some(f) = r.fnumber { add(out, ff(dec("iris_number", "acq", format!("{:.2}", f), "rtmd 0x8000", Value::from(f), so))); }
+    if let Some(a) = r.shutter_angle { add(out, ff(dec("shutter_angle", "acq", format!("{:.2}°", a), "rtmd 0x8108", Value::from(a), so))); }
+    if let Some(g) = r.gain_db { add(out, ff(dec("gain_db", "acq", format!("{:.2} dB", g), "rtmd 0x810a", Value::from(g), so))); }
+    if let Some(e) = r.exposure_index { add(out, ff(dec("exposure_index", "acq", format!("{}", e), "rtmd 0x8115", Value::from(e), so))); }
+    if let Some(x) = r.focus_ring_raw { add(out, ff(dec("focus_ring", "acq", format!("{} ({:.2} %)", x, x as f64 * 100.0 / 65535.0), "rtmd 0x800a", Value::from(x), so))); }
+    if let Some(x) = r.zoom_ring_raw { add(out, ff(dec("zoom_ring", "acq", format!("{} ({:.2} %)", x, x as f64 * 100.0 / 65535.0), "rtmd 0x800b", Value::from(x), so))); }
+    if let Some(x) = r.sensor_w_um { add(out, ff(dec("sensor_width", "acq", format!("{:.3} mm", x as f64 / 1000.0), "rtmd 0x8104", Value::from(x), so))); }
+    if let Some(x) = r.sensor_h_um { add(out, ff(dec("sensor_height", "acq", format!("{:.3} mm", x as f64 / 1000.0), "rtmd 0x8105", Value::from(x), so))); }
+    if let Some(x) = r.extender_pct { add(out, ff(dec("extender", "acq", format!("{} %", x), "rtmd 0x810c", Value::from(x), so))); }
+    if let Some(m) = &so.rec_mode { add(out, dec("rec_mode", "acq", m.clone(), "RecordingMode type", Value::from(m.as_str()), so)); }
+    if let Some(c) = so.cache_rec { add(out, dec("cache_rec", "acq", if c { "Yes" } else { "No" }.to_string(), "RecordingMode cacheRec", Value::from(c), so)); }
+    if let Some(c) = &so.coding {
+        let v = match c.as_str() { "rec709" => "Rec.709".to_string(), "rec2020" => "Rec.2020".to_string(), o => o.to_string() };
+        add(out, dec("coding_equations", "color", v, "CodingEquations", Value::from(c.as_str()), so));
+    }
     if let Some(a) = r.ae_mode { add(out, ff(dec("ae_mode", "exposure", a.to_string(), "rtmd 0x8100", Value::from(a), so))); }
     if let Some(a) = r.awb_mode {
         let v = if a == "Automatic" { "Auto" } else { a };
@@ -307,6 +325,7 @@ pub fn build_fields(tags: &[RawTag], tc: Option<&Timecode>, cn: Option<&Cndm>, s
     out.push(field(&ix, "camera_model", "camera", &[d("IFD0:Model"), d("UserData:Model"), d("Keys:CameraType"), d("Red:Model"), d("Red:CameraModel")], fmt_text, same_text));
     out.push(field(&ix, "lens", "camera", &[d("Canon:LensModel"), d("ExifIFD:LensModel"), d("Panasonic:LensType"), d("Nikon:LensID"), d("Keys:LensType"), Cand { spec: "Composite:LensID", kind: Kind::Computed }], fmt_text, same_text));
     out.push(field(&ix, "focal_length", "camera", &[d("ExifIFD:FocalLength"), d("Canon:FocalLength"), d("Keys:FocalLength")], fmt_focal, same_num));
+    out.push(field(&ix, "focus_mode", "camera", &[d("Canon:FocusMode"), d("Panasonic:FocusMode"), d("Nikon:FocusMode")], fmt_text, same_text));
     out.push(field(&ix, "aperture", "exposure", &[d("ExifIFD:FNumber"), d("Canon:FNumber"), d("Keys:Aperture")], fmt_fnum, same_num));
     out.push(field(&ix, "iso", "exposure", &[d("ExifIFD:ISO"), d("Panasonic:ISO"), d("Keys:ISO")], fmt_iso, same_num));
     out.push(field(&ix, "shutter", "exposure", &[d("ExifIFD:ExposureTime"), d("Canon:ExposureTime"), d("Keys:ShutterSpeed")], fmt_shut, same_num));

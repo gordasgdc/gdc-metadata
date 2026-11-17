@@ -10,9 +10,10 @@ struct InspectorView: View {
     @State private var thumb: NSImage?
 
     static let sections: [(id: String, ids: [String])] = [
-        ("camera", ["make", "camera_model", "lens", "focal_length", "focal_eq", "focus_distance", "focus_mode"]),
+        ("camera", ["make", "camera_model", "lens", "focal_length", "focal_eq", "focus_distance", "af_area", "focus_mode"]),
         ("exposure", ["aperture", "iso", "shutter", "ae_mode"]),
-        ("color", ["wb_mode", "wb_temp", "tint", "picture_profile"]),
+        ("color", ["wb_mode", "wb_temp", "tint", "picture_profile", "coding_equations"]),
+        ("acq", ["iris_number", "shutter_angle", "gain_db", "exposure_index", "focus_ring", "zoom_ring", "sensor_width", "sensor_height", "extender", "rec_mode", "cache_rec"]),
         ("file", ["resolution", "frame_rate", "codec", "timecode", "audio", "date_recorded", "file_size"]),
     ]
     static let inputIDs = ["gamut", "curve"]
@@ -41,7 +42,7 @@ struct InspectorView: View {
                     header
                     matchBanner
                     keyValues
-                    ForEach(Self.sections, id: \.id) { sec in section(sec.id, sec.ids) }
+                    ForEach(Self.sections.filter { $0.id != "acq" || $0.ids.contains { clip.field($0) != nil } }, id: \.id) { sec in section(sec.id, sec.ids) }
                     motionSection
                     rawSection
                 }
@@ -112,6 +113,7 @@ struct InspectorView: View {
             summaryRow("sum.lens", clip.value("lens"), fieldID: "lens")
             summaryRow("sum.focal", focalText, fieldID: "focal_length", also: ["focal_eq"])
             summaryRow("sum.focusdist", clip.value("focus_distance"), fieldID: "focus_distance")
+            summaryRow("sum.afarea", clip.value("af_area"), fieldID: "af_area")
             summaryRow("sum.focusmode", clip.value("focus_mode"), fieldID: "focus_mode")
             summaryRow("sum.wb", clip.value("wb_mode"), fieldID: "wb_mode")
             summaryRow("sum.kelvin", clip.value("wb_temp"), fieldID: "wb_temp")
@@ -189,7 +191,7 @@ struct InspectorView: View {
             if found.contains(where: { $0.note == "first_frame" }) { s += " · " + L.t("firstframe") }
             return s
         }
-        if let n = fs.compactMap({ $0.note }).first(where: { ["sony_no_lens", "sony_no_kelvin"].contains($0) }) { return L.t("note." + n) }
+        if let n = fs.compactMap({ $0.note }).first(where: { ["sony_no_lens", "sony_no_kelvin", "sony_no_focusmode"].contains($0) }) { return L.t("note." + n) }
         return nil
     }
     var profileText: String? {
@@ -389,7 +391,7 @@ struct FieldRow: View {
             if let p = field.primary { refView(p, primary: true) } else if let n = field.note { Text(L.t("note." + n)).font(.callout).foregroundStyle(.secondary) } else { Text(L.t("note.no_source_tag")).font(.callout).foregroundStyle(.secondary) }
             if let r = resolveValue { Divider(); VStack(alignment: .leading) { Text(L.t("diff.resolve")).font(.caption).foregroundStyle(.secondary); Text(r).font(.body.monospacedDigit()).foregroundStyle(Theme.accent) } }
             if !field.alternates.isEmpty { Divider(); Text(L.t("detail.alt")).font(.caption).foregroundStyle(.secondary); ForEach(field.alternates, id: \.self) { refView($0, primary: false) } }
-            if let n = field.note, ["differs", "close_values", "pair_rule", "container_label", "viewing_metadata", "ul_unmapped", "cndm_derived", "cndm_unmapped", "maker_hint", "user_confirmed", "sony_nrt", "sony_unmapped", "first_frame", "sony_no_lens", "sony_no_kelvin"].contains(n) { Divider(); Text(L.t("note." + n)).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+            if let n = field.note, ["differs", "close_values", "pair_rule", "container_label", "viewing_metadata", "ul_unmapped", "cndm_derived", "cndm_unmapped", "maker_hint", "user_confirmed", "sony_nrt", "sony_unmapped", "first_frame", "sony_no_lens", "sony_no_kelvin", "sony_no_focusmode"].contains(n) { Divider(); Text(L.t("note." + n)).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
         }
     }
     func refView(_ r: SourceRef, primary: Bool) -> some View {

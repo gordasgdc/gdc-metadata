@@ -13,7 +13,7 @@ struct ResolveSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text(s.selection.count == 1 ? L.t("act.send.1") : L.f("act.send.n", s.selection.count)).font(.title2.weight(.semibold)); Spacer()
-                Button(L.t("resolve.refresh")) { Task { await s.loadResolvePlan() } }.disabled(s.resolveLoading)
+                Button(L.t("resolve.refresh")) { Task { await s.loadResolvePlan() } }.disabled(s.resolveLoading).accessibilityLabel(L.t("resolve.refresh"))
             }
             if let e = s.resolveError {
                 Label(L.t("resolve.err." + e) == "resolve.err." + e ? L.t("resolve.err.resolve_unavailable") : L.t("resolve.err." + e), systemImage: "exclamationmark.triangle").foregroundStyle(Theme.warn).fixedSize(horizontal: false, vertical: true)
@@ -33,10 +33,10 @@ struct ResolveSheet: View {
             }
             Label(L.t("resolve.csv_warn"), systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             HStack {
-                Button(L.t("resolve.csv")) { Task { await s.saveCSV() } }.disabled(s.demo)
+                Button(L.t("resolve.csv")) { Task { await s.saveCSV() } }.disabled(s.demo).accessibilityLabel(L.t("resolve.csv"))
                 Spacer()
-                Button(L.t("close")) { dismiss() }.keyboardShortcut(.cancelAction)
-                Button(L.t("resolve.apply")) { Task { await s.applyResolve() } }
+                Button(L.t("close")) { dismiss() }.keyboardShortcut(.cancelAction).accessibilityLabel(L.t("close"))
+                Button(L.t("resolve.apply")) { Task { await s.applyResolve() } }.accessibilityLabel(L.t("resolve.apply"))
                     .buttonStyle(.borderedProminent).tint(Theme.accent)
                     .disabled(s.resolveError != nil || counts.0 == 0 || s.resolveLoading || s.lastApplied)
             }
@@ -66,14 +66,14 @@ struct ResolveSheet: View {
                 if s.inputManaged == false { Label(L.t("inres.manual"), systemImage: "hand.point.up.left").font(.caption).foregroundStyle(Theme.warn).fixedSize(horizontal: false, vertical: true) }
                 HStack {
                     Spacer()
-                    Button(L.t("inres.apply")) { s.confirmInput = true }.disabled(inputWritable == 0 || s.resolveLoading || s.inputApplied)
+                    Button(L.t("inres.apply")) { s.confirmInput = true }.disabled(inputWritable == 0 || s.resolveLoading || s.inputApplied).accessibilityLabel(L.t("inres.apply"))
                 }
             }
         }
         .padding(10).frame(maxWidth: .infinity, alignment: .leading).background(Theme.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
         .confirmationDialog(L.f("inres.confirm", inputWritable), isPresented: $s.confirmInput, titleVisibility: .visible) {
-            Button(L.t("inres.apply")) { Task { await s.applyInput() } }
-            Button(L.t("cancel"), role: .cancel) {}
+            Button(L.t("inres.apply")) { Task { await s.applyInput() } }.accessibilityLabel(L.t("inres.apply"))
+            Button(L.t("cancel"), role: .cancel) {}.accessibilityLabel(L.t("cancel"))
         } message: { Text(L.t("inres.confirm.msg")) }
     }
 

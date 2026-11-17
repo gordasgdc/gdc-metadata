@@ -23,6 +23,8 @@ pub struct Sony {
     pub exposure: Option<(u32, u32)>,
     pub iso: Option<u32>,
     pub rt: Rtmd,
+    pub rec_mode: Option<String>,
+    pub cache_rec: Option<bool>,
     /// "embedded" (inside the MP4) or "sidecar" (card-structure XML next to the clip)
     pub origin: String,
 }
@@ -72,6 +74,7 @@ pub fn parse_nrt(x: &str, origin: &str) -> Option<Sony> {
     s.gamma = item(x, "CaptureGammaEquation");
     s.primaries = item(x, "CaptureColorPrimaries");
     s.coding = item(x, "CodingEquations");
+    if let Some(t) = first_tag(x, "<RecordingMode ") { s.rec_mode = attr(t, "type"); s.cache_rec = attr(t, "cacheRec").map(|v| v == "true"); }
     if let Some(d) = first_tag(x, "<Device ") { s.maker = attr(d, "manufacturer"); s.model = attr(d, "modelName"); }
     if let Some(t) = first_tag(x, "<LtcChangeTable") { s.half_step = attr(t, "halfStep").map_or(false, |v| v == "true"); }
     let mut from = 0;
@@ -88,7 +91,7 @@ pub fn parse_nrt(x: &str, origin: &str) -> Option<Sony> {
     Some(s)
 }
 
-/// LTC value (BCD bytes FF SS MM HH; the 0x40 bit of FF is NOT treated as drop-frame: MediaInfo/ffprobe report non-drop for these clips) -> "HH:MM:SS:FF" at the video frame rate.
+/// LTC value (BCD bytes FF SS MM HH; the 0x40 bit of FF is the SMPTE drop-frame flag: Sony Catalyst Browse shows a semicolon, MediaInfo/ffprobe report non-drop) -> "HH:MM:SS:FF" at the video frame rate.
 /// With HalfStep the timecode counts at half the video rate (59.94p -> 29.97): the video frame number is doubled
 /// (the first video frame of a TC frame is used; confirmed against MediaInfo/ffprobe on A7 IV clips).
 pub fn ltc_text(s: &Sony) -> Option<String> {
@@ -96,7 +99,8 @@ pub fn ltc_text(s: &Sony) -> Option<String> {
     let bcd = |x: u8, mask: u8| ((x & mask) >> 4) * 10 + (x & 0x0f);
     let ff = bcd(b[0], 0x30) as u32; let ss = bcd(b[1], 0x70); let mm = bcd(b[2], 0x70); let hh = bcd(b[3], 0x30);
     let ff = if s.half_step { ff * 2 } else { ff };
-    Some(format!("{:02}:{:02}:{:02}:{:02}", hh, mm, ss, ff))
+    let sep = if b[0] & 0x40 != 0 { ';' } else { ':' }; // SMPTE 12M drop-frame flag; Catalyst Browse shows 06:38:19;22 for _294
+    Some(format!("{:02}:{:02}:{:02}{}{:02}", hh, mm, ss, sep, ff))
 }
 
 /// First rtmd sample -> (FNumber, ExposureTime num/den, ISO). Pure function.
@@ -108,6 +112,8 @@ pub struct Rtmd {
     pub focus_ring: Option<f64>, pub zoom_ring: Option<f64>,
     pub ae_mode: Option<&'static str>, pub af_area: Option<&'static str>, pub awb_mode: Option<&'static str>,
     pub wb_code: Option<u8>, pub shutter_angle: Option<f64>, pub gain_db: Option<f64>,
+    pub focus_ring_raw: Option<u16>, pub zoom_ring_raw: Option<u16>, pub sensor_w_um: Option<u16>, pub sensor_h_um: Option<u16>,
+    pub extender_pct: Option<u16>, pub exposure_index: Option<u16>,
 }
 /// RDD 18 16-bit lens float: 4-bit signed decimal exponent, 12-bit mantissa (value = mantissa * 10^exp).
 pub fn lens_float(v: u16) -> f64 {
@@ -141,8 +147,12 @@ pub fn parse_rtmd(d: &[u8]) -> Rtmd {
             0x8001 if len == 2 => { r.focus_m = Some(lens_float(u16v())); }
             0x8004 if len == 2 => { r.focal_eq_mm = Some(lens_float(u16v()) * 1000.0); }
             0x8005 if len == 2 => { r.focal_mm = Some(lens_float(u16v()) * 1000.0); }
-            0x800a if len == 2 => { r.focus_ring = Some(u16v() as f64 * 100.0 / 65535.0); }
-            0x800b if len == 2 => { r.zoom_ring = Some(u16v() as f64 * 100.0 / 65535.0); }
+            0x800a if len == 2 => { r.focus_ring_raw = Some(u16v()); r.focus_ring = Some(u16v() as f64 * 100.0 / 65535.0); }
+            0x800b if len == 2 => { r.zoom_ring_raw = Some(u16v()); r.zoom_ring = Some(u16v() as f64 * 100.0 / 65535.0); }
+            0x8104 if len == 2 => { r.sensor_w_um = Some(u16v()); }
+            0x8105 if len == 2 => { r.sensor_h_um = Some(u16v()); }
+            0x810c if len == 2 => { r.extender_pct = Some(u16v()); }
+            0x8115 if len == 2 => { r.exposure_index = Some(u16v()); }
             0x8100 => { r.ae_mode = ae_mode(v); }
             0x8101 if len == 1 => { r.af_area = match v[0] { 0 => Some("Manual"), 1 => Some("Center Sensitive Auto"), 2 => Some("Full Screen Sensing Auto"), 3 => Some("Multi Spot Sensing Auto"), 4 => Some("Single Spot Sensing Auto"), _ => None }; }
             0x8108 if len == 4 => { r.shutter_angle = Some(u32::from_be_bytes([v[0], v[1], v[2], v[3]]) as f64 / 60.0); }
@@ -286,7 +296,7 @@ mod tests {
     #[test] fn unknown_strings_not_guessed() { assert_eq!(curve_name("hlg3"), None); assert_eq!(gamut_name("x-gamut"), None); }
     #[test] fn timecode_matches_reference() {
         let s = parse_nrt(&xml("s-log3-cine", "s-gamut3-cine"), "embedded").unwrap();
-        assert_eq!(ltc_text(&s).unwrap(), "06:37:58:48"); // MediaInfo/ffprobe report 06:37:58:48 for this clip
+        assert_eq!(ltc_text(&s).unwrap(), "06:37:58;48"); // Catalyst Browse separator; MediaInfo/ffprobe print colons for the same value
     }
     #[test] fn rtmd_exposure() {
         // header length 0x1c, then FNumber(2.8 -> v), exposure 1/128, ISO 800
