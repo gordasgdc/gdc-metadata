@@ -59,8 +59,10 @@ final class UpdateChecker: ObservableObject {
                 guard let a else { DiagnosticLog.write("update", "up to date (\(AppVersion.current))"); return }
                 DiagnosticLog.write("update", "update available: \(a.version)")
                 available = a
-                // Test channel only: a signed manifest from the GDCUpdateFeed override + GDC_UPDATE_AUTOINSTALL=1 installs without a click (headless end-to-end test).
+                #if GDC_TEST_HOOKS
+                // Test builds only (never compiled into the public package): headless end-to-end install from the signed test feed.
                 if feed.overridden, ProcessInfo.processInfo.environment["GDC_UPDATE_AUTOINSTALL"] == "1" { DiagnosticLog.write("update", "test channel: auto-install \(a.version)"); installNow(); return }
+                #endif
                 if a.mandatory || UserDefaults.standard.string(forKey: dismissedKey) != a.version { present(a) }
             }
         }

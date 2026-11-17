@@ -6,7 +6,7 @@ EV="${GDC_BUILD_ROOT:?set GDC_BUILD_ROOT to the external test-storage folder}"
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 export CARGO_HOME="$EV/cache/cargo" CARGO_TARGET_DIR="$EV/builds/core"
 ( cd "$HERE/core" && cargo build --release )
-( cd "$HERE/app" && swift build -c release --scratch-path "$EV/builds/app" )
+( cd "$HERE/app" && swift build -c release --scratch-path "$EV/builds/app" ${GDC_TEST_HOOKS:+-Xswiftc -DGDC_TEST_HOOKS} )
 APP="$EV/builds/GDC Metadata.app"
 rm -rf "$APP"; mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$EV/builds/app/release/GDCMetadata" "$APP/Contents/MacOS/GDCMetadata"
