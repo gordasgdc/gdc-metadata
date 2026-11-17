@@ -1,0 +1,7 @@
+GDC Metadata — Copyright (c) 2026 Cristi Gordaș. MIT License (see LICENSE).
+The application and its download are free of charge.
+
+Third-party code compiled into the distributed application is listed, with its
+licence texts, in THIRD_PARTY_NOTICES.md. External programs that the application
+calls but does not include (ExifTool, DaVinci Resolve, Gyroflow) keep their own
+licences and trademarks; see THIRD_PARTY_NOTICES.md.

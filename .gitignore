@@ -1,0 +1,4 @@
+target/
+.DS_Store
+*.gdc-metadata.json
+PROJECT_STATE.md

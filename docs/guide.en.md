@@ -1,0 +1,27 @@
+# GDC Metadata — User guide
+
+## Folder → inspector → Media Pool
+
+1. **Open a folder** (toolbar folder button). The app scans it read-only and lists clips: camera, timecode and more.
+2. **Inspector.** Select a clip to see camera, lens, white balance, exposure and image profile. Each value shows its source (embedded tag, derived, unavailable). Search by field or value; the banner explains why a clip matches.
+3. **Send to Resolve.** Open a project in Resolve first. The sheet previews, per clip, what will be written, kept and identical.
+4. **Apply to Media Pool** writes the values.
+
+## What Apply does (verified in Resolve, after closing and reopening the project)
+
+- Empty field → written.
+- Field that already has a value → kept (not overwritten).
+- Same clip present in more than one bin → ambiguous, not applied.
+- Clips are matched by real file path, so folders reached through links still match.
+
+## CSV as an alternative
+
+- Save the CSV from the sheet, then in Resolve: File → Import Metadata To → Media Pool…
+- Options verified: tick **Match using filename**; leave **Match using clip start and end Timecode** unticked (with it ticked Resolve reported no matching entries for our CSV); leave Reel Name unticked; merge option **Only update metadata items with entries in the source file**.
+- **Warning:** the import overwrites existing values.
+- **Duplicate file names:** Resolve matches by file name, so every clip with that name (in any bin, even from different folders) receives the same values. Use Apply to Media Pool to avoid this.
+
+## Motion & stabilization
+
+- The inspector lists detected motion data (in-clip telemetry, external logs, .gyroflow projects) with where each was found.
+- Sources are shown as **Gyroflow compatibility unverified**. Stabilization is not offered: no before/after route has been demonstrated in Resolve yet.
