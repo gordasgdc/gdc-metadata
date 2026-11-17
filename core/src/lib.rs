@@ -2,6 +2,7 @@ pub mod exiftool;
 pub mod model;
 pub mod normalize;
 pub mod tmcd;
+pub mod cndm;
 pub mod scan;
 pub mod export;
 pub mod motion;

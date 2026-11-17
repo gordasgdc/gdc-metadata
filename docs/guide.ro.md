@@ -7,6 +7,10 @@
 3. **Trimite în Resolve.** Deschideți întâi un proiect în Resolve. Fereastra previzualizează, pe clip, ce se scrie, ce se păstrează și ce e identic.
 4. **Aplică în Media Pool** scrie valorile.
 
+## Gamut de intrare și curbă de transfer
+
+Cele două valori de sus din inspector spun ce intrare alegi în color management: de exemplu un clip Canon C50 arată **Cinema Gamut** + **Canon Log 2** (citit din pista `cndm` a fișierului) — în Resolve alegi *Canon Cinema Gamut / Canon Log 2*; un clip Canon Log 3 arată **Canon Log 3**. Fiecare valoare are sursa ei; fără dovezi rândul spune **Indisponibil** și nu se atribuie nimic. Resolve detectează singur multe clipuri Canon la import. **Aplică în Media Pool** scrie doar note informative (Gamma Notes / Color Space Notes); **Setează spațiul de intrare…** este o acțiune separată, cu confirmare, care schimbă procesarea culorii, funcționează în proiecte DaVinci YRGB Color Managed și nu suprascrie o alegere existentă. Manual: Project Settings ▸ Color Management ▸ DaVinci YRGB Color Managed, apoi Media Pool ▸ clic dreapta pe clip ▸ Input Color Space.
+
 ## Ce face «Aplică» (verificat în Resolve, după închiderea și redeschiderea proiectului)
 
 - Câmp gol → se scrie.

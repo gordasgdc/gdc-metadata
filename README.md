@@ -6,7 +6,7 @@
 
 Read camera, lens, exposure, white balance, image profile and timecode from multi-camera folders, see where each value comes from and send it to the DaVinci Resolve Media Pool. Everything stays on your Mac; originals are never modified.
 
-**[Download for macOS](https://github.com/gordasgdc/gdc-metadata/releases/download/v0.1.1/GDCMetadata-0.1.1.dmg)** — Version 0.1.1 · free · signed and notarized DMG
+**[Download for macOS](https://github.com/gordasgdc/gdc-metadata/releases/download/v0.2.0/GDCMetadata-0.2.0.dmg)** — Version 0.2.0 · free · signed and notarized DMG
 
 [English](README.md) · [Română](README.ro.md) · [Español](README.es.md) · User guide: [EN](docs/guide.en.md) · [RO](docs/guide.ro.md) · [ES](docs/guide.es.md)
 
@@ -15,6 +15,10 @@ Manual (PDF): [RO](docs/manual/pdf/manual-ro.pdf) · [EN](docs/manual/pdf/manual
 Already on 0.1.0? That version has no updater: install the new DMG once (drag the app over Applications, choose Replace). From then on use the app menu → Check for Updates…
 
 ![](site/img/02_default_en.png)
+
+## Input gamut and transfer curve
+
+At the top of the inspector, per clip: the input gamut and the transfer curve the camera recorded, each with its own source, so you know which input to choose in colour management. Verified: Canon Cinema EOS / EOS R MP4 with the cndm metadata track — Canon Log 2 vs Canon Log 3 with Cinema Gamut, confirmed against DaVinci Resolve (decoded by GDC; Canon does not document the format). When the file carries nothing, both stay Unavailable and nothing is assigned; container labels and maker-note hints are shown separately and never presented as the camera profile. Setting Input Color Space in Resolve is a separate, explicit, confirmed action that works in DaVinci YRGB Color Managed projects and never overwrites an existing choice.
 
 ## Send to Resolve
 

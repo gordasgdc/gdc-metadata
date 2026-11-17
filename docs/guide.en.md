@@ -7,6 +7,10 @@
 3. **Send to Resolve.** Open a project in Resolve first. The sheet previews, per clip, what will be written, kept and identical.
 4. **Apply to Media Pool** writes the values.
 
+## Input gamut and transfer curve
+
+The two values at the top of the inspector tell you which input to choose in colour management: e.g. a Canon C50 clip shows **Cinema Gamut** + **Canon Log 2** (read from the file's `cndm` track) — in Resolve pick *Canon Cinema Gamut / Canon Log 2*; a Canon Log 3 clip shows **Canon Log 3**. Each value has its source; with no evidence the row says **Unavailable** and nothing is assigned. Resolve detects many Canon clips by itself at import. **Apply to Media Pool** only writes informational notes (Gamma Notes / Color Space Notes); **Set input colour space…** is a separate confirmed action that changes colour processing, works in DaVinci YRGB Color Managed projects and never overwrites an existing choice. Manual path: Project Settings ▸ Color Management ▸ DaVinci YRGB Color Managed, then Media Pool ▸ right-click clip ▸ Input Color Space.
+
 ## What Apply does (verified in Resolve, after closing and reopening the project)
 
 - Empty field → written.

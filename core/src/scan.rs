@@ -76,7 +76,9 @@ pub fn scan_many(roots: &[PathBuf], mut on: impl FnMut(Event)) -> Vec<Clip> {
             let mut readers = vec![];
             if ok { readers.push("exiftool".to_string()); }
             if tc.is_some() { readers.push("gdc-tmcd".to_string()); }
-            let fields = normalize::build_fields(&tags, tc.as_ref(), size, &ext);
+            let cn = if matches!(ext.to_lowercase().as_str(), "mov" | "mp4" | "m4v") { crate::cndm::read(f) } else { None };
+            if cn.as_ref().map_or(false, |c| c.curve_code.is_some() || c.gamut_code.is_some()) { readers.push("gdc-cndm".to_string()); }
+            let fields = normalize::build_fields(&tags, tc.as_ref(), cn.as_ref(), size, &ext);
             let clip = Clip {
                 path: key, dir: f.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default(),
                 name: f.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),

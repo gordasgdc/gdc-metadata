@@ -7,6 +7,10 @@
 3. **Enviar a Resolve.** Abre antes un proyecto en Resolve. La hoja previsualiza, por clip, qué se escribe, qué se conserva y qué es idéntico.
 4. **Aplicar al Media Pool** escribe los valores.
 
+## Gamut de entrada y curva de transferencia
+
+Los dos valores superiores del inspector indican qué entrada elegir en la gestión de color: por ejemplo un clip Canon C50 muestra **Cinema Gamut** + **Canon Log 2** (leído de la pista `cndm` del archivo) — en Resolve eliges *Canon Cinema Gamut / Canon Log 2*; un clip Canon Log 3 muestra **Canon Log 3**. Cada valor tiene su origen; sin evidencia la fila dice **No disponible** y no se asigna nada. Resolve detecta solo muchos clips Canon al importar. **Aplicar al Media Pool** solo escribe notas informativas (Gamma Notes / Color Space Notes); **Fijar espacio de entrada…** es una acción separada y con confirmación que cambia el procesado de color, funciona en proyectos DaVinci YRGB Color Managed y nunca sobrescribe una elección existente. Manual: Project Settings ▸ Color Management ▸ DaVinci YRGB Color Managed, luego Media Pool ▸ clic derecho en el clip ▸ Input Color Space.
+
 ## Qué hace «Aplicar» (verificado en Resolve, tras cerrar y reabrir el proyecto)
 
 - Campo vacío → se escribe.

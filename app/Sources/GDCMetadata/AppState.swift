@@ -26,6 +26,11 @@ final class AppState: ObservableObject {
     /// path -> resolve key -> current value (what Resolve reports)
     @Published var resolveCurrent: [String: [String: String]] = [:]
     @Published var lastApplied = false
+    /// Input colour space (separate, explicit action): rows, whether the project uses colour management, confirmation state.
+    @Published var inputRows: [ResolveRow] = []
+    @Published var inputManaged: Bool?
+    @Published var inputApplied = false
+    @Published var confirmInput = false
     @Published var expandAll = false
 
     static let resolveKeyFor: [String: String] = ["make": "Camera Manufacturer", "camera_model": "Camera Type", "lens": "Lens Type", "focal_length": "Focal Point (mm)", "iso": "ISO", "wb_temp": "White Point (Kelvin)", "curve": "Gamma Notes", "gamut": "Color Space Notes"]
@@ -130,6 +135,25 @@ final class AppState: ObservableObject {
         var cur: [String: [String: String]] = [:]
         for r in resolveRows { cur[r.path] = Dictionary(uniqueKeysWithValues: r.fields.map { ($0.key, $0.current) }) }
         resolveCurrent = cur
+        await loadInputPlan()
+    }
+
+    func inputItems() async -> [[String: Any]]? {
+        let (code, out) = await Core.run(["resolve-plan"] + roots)
+        guard code == 0, let data = out.data(using: .utf8), let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return nil }
+        return arr.compactMap { it in (it["input"] as? [String: Any]).map { ["path": it["path"] as Any, "input": $0] } }
+    }
+    func loadInputPlan() async {
+        guard !demo, !roots.isEmpty, let items = await inputItems() else { inputRows = []; return }
+        inputApplied = false
+        let reply = await Core.resolve(["action": "input_plan", "items": items])
+        if reply.ok { inputRows = reply.results ?? []; inputManaged = reply.managed } else { inputRows = []; inputManaged = nil }
+    }
+    func applyInput() async {
+        guard !demo, !roots.isEmpty, let items = await inputItems() else { return }
+        resolveLoading = true; defer { resolveLoading = false }
+        let reply = await Core.resolve(["action": "input_apply", "confirm": true, "items": items])
+        if reply.ok { inputRows = reply.results ?? []; inputManaged = reply.managed; inputApplied = true }
     }
 
     func applyResolve() async {

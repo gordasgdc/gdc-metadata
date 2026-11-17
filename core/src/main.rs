@@ -50,7 +50,7 @@ fn main() {
         }
         ("resolve-plan", Some(_)) => {
             let clips = scan::scan_many(&roots, |_| {});
-            let plan: Vec<_> = clips.iter().map(|c| json!({"path": c.path, "name": c.name, "dir": c.dir, "values": export::resolve_values(c)})).collect();
+            let plan: Vec<_> = clips.iter().map(|c| json!({"path": c.path, "name": c.name, "dir": c.dir, "values": export::resolve_values(c), "input": export::resolve_input_space(c).map(|(v, k)| json!({"value": v, "curve": k}))})).collect();
             println!("{}", serde_json::to_string(&plan).unwrap());
         }
         _ => { eprintln!("usage: gdc-metadata-core version | scan <path>... | export <path>... [--out-dir D] [--share] | resolve-csv <path>... --out F | resolve-plan <path>..."); std::process::exit(2); }

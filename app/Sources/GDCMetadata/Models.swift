@@ -68,4 +68,4 @@ struct ScanLine: Decodable { var event: String; var count: Int?; var clip: Clip?
 // Resolve bridge payloads
 struct ResolveField: Codable, Hashable, Identifiable { var key: String; var new: String; var current: String; var action: String; var id: String { key } }
 struct ResolveRow: Codable, Hashable, Identifiable { var path: String; var match: String; var folder: String?; var fields: [ResolveField]; var id: String { path } }
-struct ResolveReply: Codable { var ok: Bool; var error: String?; var detail: String?; var project: String?; var version: String?; var clips: Int?; var results: [ResolveRow]? }
+struct ResolveReply: Codable { var ok: Bool; var error: String?; var detail: String?; var project: String?; var version: String?; var clips: Int?; var results: [ResolveRow]?; var mode: String?; var managed: Bool? }

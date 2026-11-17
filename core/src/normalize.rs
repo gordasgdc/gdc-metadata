@@ -1,6 +1,7 @@
 //! Common clip sheet: one field list for every camera, each value with provenance.
 use crate::model::*;
 use crate::tmcd::Timecode;
+use crate::cndm::{self, Cndm};
 use serde_json::Value;
 
 pub struct Idx<'a> { pub tags: &'a [RawTag] }
@@ -123,7 +124,7 @@ fn declared(id: &str, section: &str, value: String, t: &RawTag, note: Option<&st
 }
 
 /// Image profile / curve / gamut. Only values the file states; pair rules are marked Computed.
-fn profile_fields(ix: &Idx) -> Vec<Field> {
+fn profile_fields(ix: &Idx, cn: Option<&Cndm>) -> Vec<Field> {
     let mut profile: Option<Field> = None;
     let mut curve: Option<Field> = None;
     let mut gamut: Option<Field> = None;
@@ -172,6 +173,12 @@ fn profile_fields(ix: &Idx) -> Vec<Field> {
         let s = printed(t);
         if !useless(&s) { gamut = Some(declared("gamut", "color", s, t, Some("viewing_metadata"))); }
     }
+    if let Some(c) = cn {
+        curve = cndm_field("curve", c.curve_code, cndm::curve_name, curve);
+        gamut = cndm_field("gamut", c.gamut_code, cndm::gamut_name, gamut);
+    }
+    curve = curve.map(demote_maker_hint);
+    gamut = gamut.map(demote_maker_hint);
     let mut ul_note = false;
     if curve.is_none() {
         if let Some(t) = ix.find("Track*:CaptureGammaEquation") {
@@ -189,6 +196,38 @@ fn profile_fields(ix: &Idx) -> Vec<Field> {
     ]
 }
 
+/// Canon cndm item: decoded (empirical, not Canon-documented). Disagreement with another source keeps both values.
+fn cndm_field(id: &str, code: Option<u8>, name: fn(u8) -> Option<&'static str>, prev: Option<Field>) -> Option<Field> {
+    let code = match code { Some(c) => c, None => return prev };
+    let tag = if id == "curve" { "item 0xe211" } else { "item 0xe212" };
+    let sr = SourceRef { source: "gdc-cndm".into(), group: "Canon cndm".into(), tag: tag.into(), raw: Value::from(code), printed: Some(format!("code {:02}", code)), kind: Kind::Decoded };
+    match name(code) {
+        Some(n) => {
+            let mut f = Field { id: id.into(), section: "color".into(), value: Some(n.into()), status: Status::Found, primary: Some(sr), alternates: vec![], note: Some("cndm_derived".into()) };
+            if let Some(p) = prev {
+                if let (Some(pv), Some(ps)) = (p.value.as_ref(), p.primary.clone()) {
+                    if norm(pv) != norm(n) { f.status = Status::SourcesDiffer; f.note = Some("differs".into()); }
+                    f.alternates.push(ps);
+                }
+            }
+            Some(f)
+        }
+        None => match prev {
+            Some(p) if p.value.is_some() => Some(p),
+            _ => Some(Field { id: id.into(), section: "color".into(), value: None, status: Status::Unavailable, primary: None, alternates: vec![sr], note: Some("cndm_unmapped".into()) }),
+        },
+    }
+}
+
+/// Canon maker-note CanonLogVersion / ColorSpace2 mirror the camera SETTING and are not proof of what was recorded:
+/// on EOS R5 clips with Picture Style Neutral they say Canon Log 3 / Cinema Gamut while DaVinci Resolve (and the picture itself)
+/// treat the clip as Rec.709 gamma 2.4. They are kept as a hint, never as the detected value.
+fn demote_maker_hint(f: Field) -> Field {
+    let weak = f.primary.as_ref().map_or(false, |p| p.source == "exiftool" && p.group == "Canon" && (p.tag == "CanonLogVersion" || p.tag == "ColorSpace2"));
+    if !weak { return f; }
+    Field { id: f.id, section: f.section, value: None, status: Status::Unavailable, primary: None, alternates: f.alternates.into_iter().chain(f.primary).collect(), note: Some("maker_hint".into()) }
+}
+
 fn container_field(ix: &Idx, id: &str, name: &str) -> Field {
     let spec = format!("Track*:{}", name);
     match ix.find(&spec) {
@@ -203,7 +242,7 @@ fn container_field(ix: &Idx, id: &str, name: &str) -> Field {
     }
 }
 
-pub fn build_fields(tags: &[RawTag], tc: Option<&Timecode>, size: u64, ext: &str) -> Vec<Field> {
+pub fn build_fields(tags: &[RawTag], tc: Option<&Timecode>, cn: Option<&Cndm>, size: u64, ext: &str) -> Vec<Field> {
     let ix = Idx { tags };
     let mut out = vec![];
     out.push(field(&ix, "make", "camera", &[d("IFD0:Make"), d("UserData:Make"), d("Keys:CameraManufacturer"), d("Red:Make")], fmt_text, same_text));
@@ -216,7 +255,7 @@ pub fn build_fields(tags: &[RawTag], tc: Option<&Timecode>, size: u64, ext: &str
     out.push(field(&ix, "wb_mode", "color", &[d("Canon:WhiteBalance"), d("Panasonic:WhiteBalance"), d("ExifIFD:WhiteBalance")], fmt_wbmode, same_wb));
     out.push(field(&ix, "wb_temp", "color", &[d("Canon:ColorTemperature"), d("Panasonic:ColorTempKelvin"), d("Nikon:WhiteBalance"), d("Red:ColorTemperature"), d("Keys:ColorTemperature")], fmt_kelvin, same_num));
     out.push(unavailable("tint", "color", Some("no_source_tag")));
-    out.extend(profile_fields(&ix));
+    out.extend(profile_fields(&ix, cn));
     out.push(container_field(&ix, "container_primaries", "ColorPrimaries"));
     out.push(container_field(&ix, "container_transfer", "TransferCharacteristics"));
     out.push(container_field(&ix, "container_matrix", "MatrixCoefficients"));

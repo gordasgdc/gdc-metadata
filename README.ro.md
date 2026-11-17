@@ -6,7 +6,7 @@
 
 Citește camera, obiectivul, expunerea, balansul de alb, profilul de imagine și timecode-ul din foldere multi-cameră, arată de unde vine fiecare valoare și le trimite în Media Pool din DaVinci Resolve. Totul rămâne pe Mac; originalele nu sunt modificate.
 
-**[Descarcă pentru macOS](https://github.com/gordasgdc/gdc-metadata/releases/download/v0.1.1/GDCMetadata-0.1.1.dmg)** — Versiunea 0.1.1 · gratuit · DMG semnat și notarizat
+**[Descarcă pentru macOS](https://github.com/gordasgdc/gdc-metadata/releases/download/v0.2.0/GDCMetadata-0.2.0.dmg)** — Versiunea 0.2.0 · gratuit · DMG semnat și notarizat
 
 [English](README.md) · [Română](README.ro.md) · [Español](README.es.md) · Ghid de utilizare: [EN](docs/guide.en.md) · [RO](docs/guide.ro.md) · [ES](docs/guide.es.md)
 
@@ -15,6 +15,10 @@ Manual (PDF): [RO](docs/manual/pdf/manual-ro.pdf) · [EN](docs/manual/pdf/manual
 Ai deja 0.1.0? Acea versiune nu are actualizator: instalează o singură dată noul DMG (trage aplicația peste Applications și alege Înlocuiește). De atunci folosește meniul aplicației → Caută actualizări…
 
 ![](site/img/02_default_en.png)
+
+## Gamut de intrare și curbă de transfer
+
+Sus în inspector, pentru fiecare clip: gamutul de intrare și curba de transfer înregistrate de cameră, fiecare cu sursa ei, ca să știi ce intrare alegi în color management. Verificat: MP4 Canon Cinema EOS / EOS R cu pista de metadate cndm — Canon Log 2 față de Canon Log 3 cu Cinema Gamut, confirmat față de DaVinci Resolve (decodat de GDC; Canon nu documentează formatul). Când fișierul nu conține nimic, ambele rămân Indisponibil și nu se atribuie nimic; etichetele containerului și indiciile din metadatele aparatului apar separat și nu sunt prezentate ca profil al camerei. Setarea Input Color Space în Resolve este o acțiune separată, explicită, cu confirmare, în proiecte DaVinci YRGB Color Managed, și nu suprascrie o alegere existentă.
 
 ## Trimite în Resolve
 

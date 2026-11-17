@@ -105,3 +105,65 @@ fn multi_root_scan_rejects_with_reason_and_dedupes() {
     assert_eq!(export::common_ancestor(&clips), base);
     let _ = std::fs::remove_dir_all(&base);
 }
+
+// ---- input gamut / transfer curve (Canon cndm) --------------------------------------------------
+use gdc_metadata_core::cndm::Cndm;
+use gdc_metadata_core::model::RawTag;
+use gdc_metadata_core::normalize::build_fields;
+
+fn tag(group: &str, name: &str, raw: serde_json::Value, printed: &str) -> RawTag {
+    RawTag { group: group.into(), name: name.into(), raw, printed: Some(printed.into()) }
+}
+fn fld<'a>(v: &'a [gdc_metadata_core::model::Field], id: &str) -> &'a gdc_metadata_core::model::Field { v.iter().find(|f| f.id == id).unwrap() }
+
+#[test]
+fn cndm_log2_and_log3_are_distinguished_and_independent() {
+    let l2 = build_fields(&[], None, Some(&Cndm { curve_code: Some(2), gamut_code: Some(2) }), 0, "mp4");
+    let l3 = build_fields(&[], None, Some(&Cndm { curve_code: Some(7), gamut_code: Some(2) }), 0, "mp4");
+    assert_eq!(fld(&l2, "curve").value.as_deref(), Some("Canon Log 2"));
+    assert_eq!(fld(&l3, "curve").value.as_deref(), Some("Canon Log 3"));
+    assert_eq!(fld(&l2, "gamut").value.as_deref(), Some("Cinema Gamut"));
+    // curve present while gamut absent, and the reverse
+    let only_curve = build_fields(&[], None, Some(&Cndm { curve_code: Some(2), gamut_code: None }), 0, "mp4");
+    assert!(fld(&only_curve, "curve").value.is_some() && fld(&only_curve, "gamut").value.is_none());
+    let only_gamut = build_fields(&[], None, Some(&Cndm { curve_code: None, gamut_code: Some(2) }), 0, "mp4");
+    assert!(fld(&only_gamut, "curve").value.is_none() && fld(&only_gamut, "gamut").value.is_some());
+}
+
+#[test]
+fn unknown_cndm_code_is_reported_not_guessed_and_no_data_stays_unassigned() {
+    let f = build_fields(&[], None, Some(&Cndm { curve_code: Some(9), gamut_code: Some(5) }), 0, "mp4");
+    assert!(fld(&f, "curve").value.is_none()); assert_eq!(fld(&f, "curve").note.as_deref(), Some("cndm_unmapped"));
+    assert!(fld(&f, "gamut").value.is_none());
+    let none = build_fields(&[], None, None, 0, "mp4");
+    assert!(fld(&none, "curve").value.is_none() && fld(&none, "gamut").value.is_none());
+    // brand/model alone never assigns anything
+    let brand = build_fields(&[tag("IFD0", "Make", "Canon".into(), "Canon"), tag("IFD0", "Model", "Canon EOS R5".into(), "Canon EOS R5")], None, None, 0, "mp4");
+    assert!(fld(&brand, "curve").value.is_none() && fld(&brand, "gamut").value.is_none());
+}
+
+#[test]
+fn canon_maker_note_hint_is_not_a_detection_and_disagreement_shows_both() {
+    let hints = [tag("Canon", "CanonLogVersion", 3.into(), "CLogV3"), tag("Canon", "ColorSpace2", 2.into(), "CinemaGamut")];
+    let f = build_fields(&hints, None, None, 0, "mp4");
+    assert!(fld(&f, "curve").value.is_none()); assert_eq!(fld(&f, "curve").note.as_deref(), Some("maker_hint"));
+    assert_eq!(fld(&f, "curve").alternates.len(), 1);
+    // cndm says Log 2 while a maker tag says Log 3 -> both values kept, flagged
+    let g = build_fields(&hints, None, Some(&Cndm { curve_code: Some(2), gamut_code: Some(2) }), 0, "mp4");
+    assert_eq!(fld(&g, "curve").value.as_deref(), Some("Canon Log 2"));
+    assert_eq!(fld(&g, "curve").status, gdc_metadata_core::model::Status::SourcesDiffer);
+    assert_eq!(fld(&g, "curve").alternates.len(), 1);
+    // the cndm gamut agrees with the maker tag -> found, not a conflict
+    assert_eq!(fld(&g, "gamut").status, gdc_metadata_core::model::Status::Found);
+}
+
+#[test]
+fn canon_cndm_real_clips_when_mounted() {
+    // local-only proof on private clips: GDC_CNDM_CL2 / GDC_CNDM_CL3 point to Canon Log 2 / Canon Log 3 MP4 files
+    for (var, want) in [("GDC_CNDM_CL2", Some(2u8)), ("GDC_CNDM_CL3", Some(7u8))] {
+        let p_s = std::env::var(var).unwrap_or_default(); let p = Path::new(&p_s);
+        if p_s.is_empty() || !p.exists() { eprintln!("skipped {var}"); continue; }
+        let c = gdc_metadata_core::cndm::read(p).expect("cndm track");
+        assert_eq!(c.curve_code, want); assert_eq!(c.gamut_code, Some(2));
+    }
+}

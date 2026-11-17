@@ -27,6 +27,7 @@ struct ResolveSheet: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) { ForEach(s.resolveRows) { row in rowView(row) } }
                 }.frame(minHeight: 260)
+                inputSection
                 Label(L.t("resolve.only_in_sidecar"), systemImage: "doc.text").font(.caption).foregroundStyle(.secondary)
             }
             Label(L.t("resolve.csv_warn"), systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -40,6 +41,39 @@ struct ResolveSheet: View {
             }
         }
         .padding(20).frame(minWidth: 640, minHeight: 460)
+    }
+
+    var inputWritable: Int { s.inputRows.filter { $0.fields.first?.action == "write" }.count }
+    @ViewBuilder var inputSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(L.t("inres.title")).font(.headline)
+            Text(L.t("inres.explain")).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            if s.inputRows.isEmpty {
+                Text(L.t("inres.none")).font(.caption).foregroundStyle(.secondary)
+            } else {
+                ForEach(s.inputRows) { row in
+                    if let f = row.fields.first {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(name(row.path)).font(.caption.weight(.medium)).lineLimit(1)
+                            Text(f.new).font(.caption.monospacedDigit())
+                            if !f.current.isEmpty && f.current != f.new { Text("(\(L.t("resolve.value.in")): \(f.current))").font(.caption.monospacedDigit()).foregroundStyle(Theme.accent) }
+                            Spacer(minLength: 6)
+                            Text(L.t("inres." + f.action)).font(.caption2.weight(.medium)).foregroundStyle(f.action == "write" || f.action == "written" ? Theme.ok : f.action == "failed" || f.action == "unavailable_mode" ? Theme.warn : .secondary)
+                        }
+                    }
+                }
+                if s.inputManaged == false { Label(L.t("inres.manual"), systemImage: "hand.point.up.left").font(.caption).foregroundStyle(Theme.warn).fixedSize(horizontal: false, vertical: true) }
+                HStack {
+                    Spacer()
+                    Button(L.t("inres.apply")) { s.confirmInput = true }.disabled(inputWritable == 0 || s.resolveLoading || s.inputApplied)
+                }
+            }
+        }
+        .padding(10).frame(maxWidth: .infinity, alignment: .leading).background(Theme.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
+        .confirmationDialog(L.f("inres.confirm", inputWritable), isPresented: $s.confirmInput, titleVisibility: .visible) {
+            Button(L.t("inres.apply")) { Task { await s.applyInput() } }
+            Button(L.t("cancel"), role: .cancel) {}
+        } message: { Text(L.t("inres.confirm.msg")) }
     }
 
     func rowView(_ row: ResolveRow) -> some View {

@@ -85,6 +85,19 @@ pub fn resolve_values(clip: &Clip) -> Vec<(String, String)> {
     v
 }
 
+/// Resolve "Input Color Space" string for a clip, only when the pair was decoded from the file (Canon cndm) and both
+/// names are in Resolve's list (verified in Resolve 21.2: "Canon Cinema Gamut/Canon Log 2" and "…/Canon Log 3" accepted).
+/// Returns (resolve value, curve name). Never inferred from brand or model.
+pub fn resolve_input_space(clip: &Clip) -> Option<(String, String)> {
+    let get = |id: &str| clip.fields.iter().find(|f| f.id == id);
+    let (c, g) = (get("curve")?, get("gamut")?);
+    let decoded = |f: &crate::model::Field| f.status == Status::Found && f.primary.as_ref().map_or(false, |p| p.source == "gdc-cndm");
+    if !decoded(c) || !decoded(g) || g.value.as_deref() != Some("Cinema Gamut") { return None; }
+    let curve = c.value.clone()?;
+    if curve != "Canon Log 2" && curve != "Canon Log 3" { return None; }
+    Some((format!("Canon Cinema Gamut/{}", curve), curve))
+}
+
 pub const RESOLVE_KEYS: &[&str] = &["Camera Manufacturer", "Camera Type", "Lens Type", "Focal Point (mm)", "ISO", "White Point (Kelvin)", "Gamma Notes", "Color Space Notes"];
 
 fn q(s: &str) -> String { if s.contains([',', '"', '\n']) { format!("\"{}\"", s.replace('"', "\"\"")) } else { s.to_string() } }

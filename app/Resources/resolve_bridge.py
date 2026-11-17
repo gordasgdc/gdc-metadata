@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """GDC Metadata -> DaVinci Resolve bridge (stdlib only, Python 3.9+).
 stdin: JSON {"action": "status"|"plan"|"apply", ...}  stdout: one JSON object.
-Writes ONLY Media Pool metadata through MediaPoolItem.SetMetadata; never touches
+Actions "plan"/"apply" write ONLY Media Pool metadata through MediaPoolItem.SetMetadata; they never touch
 colour management, Camera RAW or grades. Existing non-empty values are kept unless overwrite=true.
+Actions "input_plan"/"input_apply" are separate and explicit: they set the clip's "Input Color Space" (verified to change
+processing in Resolve 21.2) only when the project uses DaVinci YRGB Color Managed, never over an existing assignment
+(anything other than "Project") unless overwrite=true.
 """
 import json, os, sys
 
@@ -52,6 +55,35 @@ def main():
     if act == "status":
         out({"ok": True, "version": r.GetVersionString(), "project": project.GetName(),
              "clips": sum(len(v) for v in index(project).values())})
+    if act in ("input_plan", "input_apply"):
+        mode = project.GetSetting("colorScienceMode") or ""
+        managed = mode.startswith("davinciYRGBColorManaged")
+        idx = index(project); rows = []
+        for it in req.get("items", []):
+            hits = idx.get(os.path.realpath(it["path"]), [])
+            inp = it.get("input")
+            row = {"path": it["path"], "match": "none", "folder": None, "fields": []}
+            if len(hits) == 1 and inp:
+                row["match"] = "exact"; row["folder"] = hits[0][0]; clip = hits[0][1]
+                cur = (clip.GetClipProperty("Input Color Space") or "").strip()
+                gam = (clip.GetClipProperty("Input Gamma") or "").strip()
+                want = inp["value"]
+                # Resolve auto-detects Canon MP4 as "Canon Cinema Gamut/Canon Log" + Input Gamma "Canon Log 2|3" and processes it as that curve
+                same = cur == want or (cur == "Canon Cinema Gamut/Canon Log" and gam == inp["curve"])
+                if same: act_ = "same"
+                elif not managed: act_ = "unavailable_mode"
+                elif cur and cur != "Project" and not req.get("overwrite"): act_ = "keep"
+                else: act_ = "write"
+                f = {"key": "Input Color Space", "new": want, "current": cur, "action": act_}
+                if req.get("confirm") and act == "input_apply" and act_ == "write":
+                    ok = clip.SetClipProperty("Input Color Space", want)
+                    f["action"] = "written" if ok and (clip.GetClipProperty("Input Color Space") or "") == want else "failed"
+                row["fields"].append(f)
+            elif len(hits) > 1:
+                row["match"] = "ambiguous"; row["folder"] = ", ".join(sorted(set(h[0] for h in hits)))
+            rows.append(row)
+        if act == "input_apply" and req.get("confirm"): pm.SaveProject()
+        out({"ok": True, "project": project.GetName(), "mode": mode, "managed": managed, "results": rows})
     keys = req.get("keys", [])
     idx = index(project)
     results = []

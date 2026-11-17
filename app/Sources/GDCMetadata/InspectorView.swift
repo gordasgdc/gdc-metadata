@@ -12,9 +12,10 @@ struct InspectorView: View {
     static let sections: [(id: String, ids: [String])] = [
         ("camera", ["make", "camera_model", "lens", "focal_length"]),
         ("exposure", ["aperture", "iso", "shutter"]),
-        ("color", ["wb_mode", "wb_temp", "tint", "picture_profile", "curve", "gamut"]),
+        ("color", ["wb_mode", "wb_temp", "tint", "picture_profile"]),
         ("file", ["resolution", "frame_rate", "codec", "timecode", "audio", "date_recorded", "file_size"]),
     ]
+    static let inputIDs = ["gamut", "curve"]
     static let containerIDs = ["container_primaries", "container_transfer", "container_matrix"]
 
     var q: String { s.query.trimmingCharacters(in: .whitespaces).lowercased() }
@@ -26,7 +27,7 @@ struct InspectorView: View {
     }
     func sectionHit(_ id: String) -> Bool {
         let ids = Self.sections.first { $0.id == id }?.ids ?? []
-        let extra = id == "color" ? Self.containerIDs : []
+        let extra = id == "color" ? Self.containerIDs + Self.inputIDs : []
         return (ids + extra).compactMap { clip.field($0) }.contains(where: hit)
     }
     var rawHits: [RawTag] { q.isEmpty ? [] : clip.tags.filter { $0.name.lowercased().contains(q) || $0.group.lowercased().contains(q) || $0.shown.lowercased().contains(q) } }
@@ -81,6 +82,7 @@ struct InspectorView: View {
 
     func firstHit() -> String? {
         guard !q.isEmpty else { return nil }
+        for id in Self.inputIDs { if let f = clip.field(id), hit(f) { return "row-" + id } }
         for sec in Self.sections { for id in sec.ids + (sec.id == "color" ? Self.containerIDs : []) { if let f = clip.field(id), hit(f) { return "row-" + id } } }
         return rawHits.isEmpty ? nil : "raw"
     }
@@ -105,11 +107,48 @@ struct InspectorView: View {
     // MARK: first-look values
     var keyValues: some View {
         VStack(alignment: .leading, spacing: 0) {
+            inputBlock
             summaryRow("sum.camera", clip.value("camera_model"))
             summaryRow("sum.lens", [clip.value("lens"), clip.value("focal_length")].compactMap { $0 }.joined(separator: " · "))
             summaryRow("sum.wb", wbText, fieldID: "wb_temp")
             summaryRow("sum.exposure", [clip.value("aperture"), clip.value("shutter"), clip.value("iso")].compactMap { $0 }.joined(separator: " · "))
-            summaryRow("sum.profile", profileText, fieldID: "picture_profile")
+            summaryRow("sum.profile", clip.value("picture_profile"), fieldID: "picture_profile")
+        }
+    }
+    /// The two values that decide the input in colour management, each with its own provenance and independent of the other.
+    var inputBlock: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(L.t("input.title")).font(.caption.weight(.semibold)).foregroundStyle(Theme.accent).textCase(.uppercase)
+            ForEach(Self.inputIDs, id: \.self) { fid in
+                if let f = clip.field(fid) {
+                    FieldRow(clip: clip, field: f, highlighted: hit(f)).id("row-" + fid)
+                    inputSource(f)
+                }
+            }
+            Text(L.t("input.hint")).font(.caption2).foregroundStyle(.tertiary).padding(.top, 2).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(10).frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
+        .padding(.bottom, 8)
+    }
+    @ViewBuilder func inputSource(_ f: Field) -> some View {
+        if f.status == "sources_differ", let p = f.primary {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("⚠ \(L.t("note.differs"))").font(.caption).foregroundStyle(Theme.warn)
+                Text("\(p.label): \(f.value ?? "")").font(.caption.monospaced())
+                ForEach(f.alternates, id: \.self) { a in Text("\(a.label): \(a.printed ?? a.raw.text)").font(.caption.monospaced()) }
+            }.padding(.leading, Theme.labelWidth + 6)
+        } else if let p = f.primary {
+            Text("\(L.t("input.source")): \(p.label)" + (f.note == "cndm_derived" ? " · \(L.t("input.derived"))" : f.status == "computed" ? " · \(L.t("st.computed"))" : "")).font(.caption).foregroundStyle(.secondary).padding(.leading, Theme.labelWidth + 6)
+        } else if f.note == "maker_hint", let a = f.alternates.first {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("\(a.label) · \(a.printed ?? a.raw.text)").font(.caption.monospaced())
+                Text(L.t("note.maker_hint")).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }.padding(.leading, Theme.labelWidth + 6)
+        } else if f.note == "cndm_unmapped", let a = f.alternates.first {
+            Text("\(a.label) · \(a.printed ?? a.raw.text) — \(L.t("note.cndm_unmapped"))").font(.caption).foregroundStyle(.secondary).padding(.leading, Theme.labelWidth + 6)
+        } else {
+            Text(L.t("input.none")).font(.caption).foregroundStyle(.secondary).padding(.leading, Theme.labelWidth + 6)
         }
     }
     var wbText: String? {
@@ -309,7 +348,7 @@ struct FieldRow: View {
             if let p = field.primary { refView(p, primary: true) } else if let n = field.note { Text(L.t("note." + n)).font(.callout).foregroundStyle(.secondary) } else { Text(L.t("note.no_source_tag")).font(.callout).foregroundStyle(.secondary) }
             if let r = resolveValue { Divider(); VStack(alignment: .leading) { Text(L.t("diff.resolve")).font(.caption).foregroundStyle(.secondary); Text(r).font(.body.monospacedDigit()).foregroundStyle(Theme.accent) } }
             if !field.alternates.isEmpty { Divider(); Text(L.t("detail.alt")).font(.caption).foregroundStyle(.secondary); ForEach(field.alternates, id: \.self) { refView($0, primary: false) } }
-            if let n = field.note, ["differs", "close_values", "pair_rule", "container_label", "viewing_metadata", "ul_unmapped"].contains(n) { Divider(); Text(L.t("note." + n)).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+            if let n = field.note, ["differs", "close_values", "pair_rule", "container_label", "viewing_metadata", "ul_unmapped", "cndm_derived", "cndm_unmapped", "maker_hint"].contains(n) { Divider(); Text(L.t("note." + n)).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
         }
     }
     func refView(_ r: SourceRef, primary: Bool) -> some View {
