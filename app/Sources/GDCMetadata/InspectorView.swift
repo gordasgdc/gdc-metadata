@@ -109,9 +109,13 @@ struct InspectorView: View {
         VStack(alignment: .leading, spacing: 0) {
             inputBlock
             summaryRow("sum.camera", clip.value("camera_model"))
-            summaryRow("sum.lens", lensText, fieldID: "lens", also: ["focal_length"])
-            summaryRow("sum.focus", [clip.value("focus_distance"), clip.value("focus_mode")].compactMap { $0 }.joined(separator: " · "), fieldID: "focus_distance", also: ["focus_mode"])
-            summaryRow("sum.wb", wbText, fieldID: "wb_mode", also: ["wb_temp"])
+            summaryRow("sum.lens", clip.value("lens"), fieldID: "lens")
+            summaryRow("sum.focal", focalText, fieldID: "focal_length", also: ["focal_eq"])
+            summaryRow("sum.focusdist", clip.value("focus_distance"), fieldID: "focus_distance")
+            summaryRow("sum.focusmode", clip.value("focus_mode"), fieldID: "focus_mode")
+            summaryRow("sum.wb", clip.value("wb_mode"), fieldID: "wb_mode")
+            summaryRow("sum.kelvin", clip.value("wb_temp"), fieldID: "wb_temp")
+            summaryRow("sum.tint", clip.value("tint"), fieldID: "tint")
             summaryRow("sum.exposure", [clip.value("aperture"), clip.value("shutter"), clip.value("iso")].compactMap { $0 }.joined(separator: " · "))
             summaryRow("sum.profile", clip.value("picture_profile"), fieldID: "picture_profile")
             Text(L.t("profile.preset.note")).font(.caption2).foregroundStyle(.tertiary).padding(.top, 2).fixedSize(horizontal: false, vertical: true)
@@ -171,9 +175,10 @@ struct InspectorView: View {
         let m = clip.value("wb_mode"), t = clip.value("wb_temp")
         let s = [m, t].compactMap { $0 }.joined(separator: " · "); return s.isEmpty ? nil : s
     }
-    var lensText: String? {
-        var f = clip.value("focal_length"); if let e = clip.value("focal_eq"), f != nil { f! += " (\(e) " + L.t("eq35") + ")" }
-        let s = [clip.value("lens"), f].compactMap { $0 }.joined(separator: " · "); return s.isEmpty ? nil : s
+    var focalText: String? {
+        guard var f = clip.value("focal_length") else { return nil }
+        if let e = clip.value("focal_eq") { f += " (\(e) " + L.t("eq35") + ")" }
+        return f
     }
     /// Short provenance line shown under a summary value: where it was read and, when it is a single moment, which one.
     func sourceCaption(_ ids: [String]) -> String? {
