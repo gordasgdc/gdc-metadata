@@ -12,17 +12,17 @@ struct ContentView: View {
         Group {
             if s.clips.isEmpty && !s.scanning { dropZone } else {
                 HSplitView {
-                    clipList.frame(minWidth: 440, idealWidth: 500, maxWidth: 680)
+                    clipList.frame(minWidth: 400, idealWidth: 760)
                     Group {
                         if let c = s.selected { InspectorView(clip: c) }
                         else if s.selection.count > 1 { BatchView() }
                         else { Text(L.t("empty.sel")).foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity) }
                     }
-                        .frame(minWidth: 420)
+                        .frame(minWidth: 330, idealWidth: 400, maxWidth: 520)
                 }
             }
         }
-        .frame(minWidth: 920, minHeight: 560)
+        .frame(minWidth: 780, minHeight: 560)
         .onDrop(of: [.fileURL], isTargeted: $targeted) { providers in
             guard !providers.isEmpty else { return false }
             // one gesture can carry many files; collect all of them (they arrive in any order), then import them as a single batch
@@ -36,6 +36,7 @@ struct ContentView: View {
         }
         .overlay { if targeted { RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.accent, style: StrokeStyle(lineWidth: 2, dash: [8])).padding(6).allowsHitTesting(false) } }
         .toolbar { toolbar }
+        .sheet(isPresented: $s.showPreview) { if let c = s.selected { PreviewSheet(clip: c).environmentObject(s).environmentObject(L) } }
         .sheet(isPresented: $s.showResolve) { ResolveSheet().environmentObject(s).environmentObject(L) }
         .navigationTitle(L.t("app.title"))
         .alert(exportMsg ?? "", isPresented: Binding(get: { exportMsg != nil }, set: { if !$0 { exportMsg = nil } })) { Button("OK") {} }
@@ -55,21 +56,44 @@ struct ContentView: View {
 
     var clipList: some View {
         VStack(spacing: 0) {
-            Table(s.filtered(s.query), selection: $s.selection) {
-                TableColumn(L.t("col.clip")) { c in
-                    HStack(spacing: 6) {
-                        Image(systemName: c.ok ? "film" : "exclamationmark.triangle.fill").foregroundStyle(c.ok ? Theme.muted : Theme.warn).frame(width: 16)
-                        Text(c.name).lineLimit(1).truncationMode(.middle)
-                    }
-                }.width(min: 130, ideal: 170)
-                TableColumn(L.t("col.profile")) { c in PairCell(pair: s.pair(c), L: L) }.width(min: 170, ideal: 230)
-                TableColumn(L.t("col.camera")) { c in Text(c.value("camera_model") ?? L.t("st.unavailable")).foregroundStyle(c.value("camera_model") == nil ? .tertiary : .primary).lineLimit(1) }.width(min: 80, ideal: 110)
-                TableColumn(L.t("col.tc")) { c in Text(c.value("timecode") ?? "—").mono().foregroundStyle(c.value("timecode") == nil ? .tertiary : .primary) }.width(min: 80, ideal: 96)
+            GeometryReader { geo in
+                if geo.size.width >= 700 { wideTable } else { narrowTable }
             }
-            .tableStyle(.inset(alternatesRowBackgrounds: false))
             actionBar
             statusBar
         }
+    }
+    func demoIdx(_ c: Clip) -> Int? { s.demo ? s.clips.firstIndex { $0.id == c.id } : nil }
+    func clipCell(_ c: Clip) -> some View {
+        HStack(spacing: 8) {
+            ThumbView(path: c.path, id: c.id, demoIndex: demoIdx(c))
+            if !c.ok { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Theme.warn) }
+            Text(c.name).fontWeight(.semibold).lineLimit(1).truncationMode(.middle)
+        }
+    }
+    func tcCell(_ c: Clip) -> some View { Text(c.value("timecode") ?? "—").mono().foregroundStyle(c.value("timecode") == nil ? .tertiary : .primary).lineLimit(1).fixedSize() }
+    func valueCell(_ v: String?) -> some View { Text(v ?? L.t("st.unavailable")).italic(v == nil).foregroundStyle(v == nil ? .secondary : .primary).lineLimit(1).truncationMode(.tail) }
+    /// Wide layout (variant B): every column that matters for comparing clips; the full timecode always fits.
+    var wideTable: some View {
+        Table(s.filtered(s.query), selection: $s.selection) {
+            TableColumn(L.t("col.clip")) { c in clipCell(c) }.width(min: 150, ideal: 200)
+            TableColumn(L.t("col.profile")) { c in PairCell(pair: s.pair(c), L: L) }.width(min: 170, ideal: 220)
+            TableColumn(L.t("col.camera")) { c in valueCell(c.value("camera_model")) }.width(min: 80, ideal: 110)
+            TableColumn(L.t("col.lens")) { c in valueCell(c.value("lens")) }.width(min: 80, ideal: 130)
+            TableColumn(L.t("col.wb")) { c in valueCell(c.value("wb_temp") ?? c.value("wb_mode")) }.width(min: 60, ideal: 80)
+            TableColumn(L.t("col.exposure")) { c in valueCell([c.value("aperture"), c.value("shutter"), c.value("iso")].compactMap { $0 }.joined(separator: " · ").nilIfEmpty) }.width(min: 120, ideal: 170)
+            TableColumn(L.t("col.tc")) { c in tcCell(c) }.width(min: 100, ideal: 104)
+        }
+        .tableStyle(.inset(alternatesRowBackgrounds: false))
+    }
+    /// Narrow layout: clip name, gamut/curve pair and the complete timecode stay visible.
+    var narrowTable: some View {
+        Table(s.filtered(s.query), selection: $s.selection) {
+            TableColumn(L.t("col.clip")) { c in clipCell(c) }.width(min: 120, ideal: 150)
+            TableColumn(L.t("col.profile")) { c in PairCell(pair: s.pair(c), L: L) }.width(min: 150, ideal: 190)
+            TableColumn(L.t("col.tc")) { c in tcCell(c) }.width(min: 100, ideal: 104)
+        }
+        .tableStyle(.inset(alternatesRowBackgrounds: false))
     }
 
     var n: Int { s.selection.count }
@@ -182,9 +206,26 @@ struct BatchView: View {
     @EnvironmentObject var s: AppState
     @EnvironmentObject var L: Loc
     @State private var manual = ""
+    var batchSummary: some View {
+        let cs = s.selectedClips; let st = cs.map { s.pair($0).state }
+        let conf = st.filter { $0 == .confirmed }.count
+        let ready = st.filter { $0 == .read || $0 == .inferred }.count
+        let none = cs.count - conf - ready
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(L.t("batch.will")).font(.caption.weight(.semibold)).foregroundStyle(Theme.accent).textCase(.uppercase)
+            sumRow("batch.sel", "\(cs.count)")
+            sumRow("batch.confirmed", "\(conf)")
+            sumRow("batch.toconfirm", "\(ready)")
+            sumRow("batch.nopair", "\(none)")
+            sumRow("batch.export", "\(cs.count)")
+            sumRow("batch.resolve", "\(conf + ready)")
+        }.padding(10).frame(maxWidth: .infinity, alignment: .leading).background(Theme.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
+    }
+    func sumRow(_ k: String, _ v: String) -> some View { HStack { Text(L.t(k)).foregroundStyle(.secondary); Spacer(); Text(v).fontWeight(.semibold).monospacedDigit() } }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(L.f("batch.title", s.selection.count)).font(.title2.weight(.semibold))
+            batchSummary
             Text(L.t("batch.help")).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             HStack {
                 Button(L.t("act.accept")) { let sk = s.acceptDetected(s.selection); s.opMessage = sk > 0 ? L.f("batch.skipped", sk) : nil }.buttonStyle(.borderedProminent).tint(Theme.accent)
@@ -210,3 +251,5 @@ struct BatchView: View {
         .onChange(of: s.selection) { _, _ in s.opMessage = nil }
     }
 }
+
+extension String { var nilIfEmpty: String? { isEmpty ? nil : self } }

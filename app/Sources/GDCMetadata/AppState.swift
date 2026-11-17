@@ -24,6 +24,7 @@ final class AppState: ObservableObject {
     @Published var demo = false
     @Published var toast: String?
     @Published var showResolve = false
+    @Published var showPreview = false
     @Published var resolveRows: [ResolveRow] = []
     @Published var resolveProject: String?
     @Published var resolveError: String?

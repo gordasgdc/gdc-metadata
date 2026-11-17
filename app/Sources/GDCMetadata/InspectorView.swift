@@ -90,18 +90,25 @@ struct InspectorView: View {
 
     // MARK: header
     var header: some View {
-        HStack(alignment: .top, spacing: 14) {
-            ZStack {
-                if let t = thumb { Image(nsImage: t).resizable().scaledToFill() }
-                else { LinearGradient(colors: [Color(white: 0.16), Color(white: 0.26)], startPoint: .topLeading, endPoint: .bottomTrailing); Image(systemName: "film").font(.title).foregroundStyle(.tertiary) }
-            }.frame(width: 192, height: 108).clipShape(RoundedRectangle(cornerRadius: 8)).overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.hairline))
+        VStack(alignment: .leading, spacing: 8) {
+            ZStack(alignment: .bottomTrailing) {
+                ZStack {
+                    Color.black
+                    if let t = thumb { Image(nsImage: t).resizable().scaledToFit() }
+                    else { Image(systemName: "film").font(.title).foregroundStyle(.tertiary) }
+                }
+                .frame(maxWidth: .infinity).aspectRatio(16.0 / 9.0, contentMode: .fit)
+                .clipShape(RoundedRectangle(cornerRadius: 6)).overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.hairline))
+                .onTapGesture(count: 2) { s.showPreview = true }
+                Button { s.showPreview = true } label: { Image(systemName: "arrow.up.left.and.arrow.down.right").padding(6).background(.black.opacity(0.55), in: Circle()) }
+                    .buttonStyle(.plain).foregroundStyle(.white).padding(6).help(L.t("preview.enlarge")).accessibilityLabel(L.t("preview.enlarge"))
+            }
             VStack(alignment: .leading, spacing: 4) {
-                Text(clip.name).font(.title3.weight(.semibold)).lineLimit(2).textSelection(.enabled)
+                HStack(alignment: .firstTextBaseline) { Text(clip.name).font(.title3.weight(.semibold)).lineLimit(2).textSelection(.enabled); Spacer(); if let t = clip.value("timecode") { Text(t).mono().foregroundStyle(.secondary).fixedSize() } }
                 Text(clip.dir).font(.caption).foregroundStyle(.secondary).lineLimit(2).truncationMode(.head).textSelection(.enabled)
                 HStack(spacing: 6) { ForEach(clip.readers, id: \.self) { Text($0).font(.caption2).padding(.horizontal, 6).padding(.vertical, 1).background(Theme.hairline.opacity(0.5), in: Capsule()) } }
                 if let e = clip.error { Label(e, systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(Theme.warn) }
             }
-            Spacer(minLength: 0)
         }
     }
 
@@ -310,15 +317,7 @@ struct InspectorView: View {
 
     func loadThumb() async {
         thumb = nil
-        let url = URL(fileURLWithPath: clip.path)
-        let gen = AVAssetImageGenerator(asset: AVURLAsset(url: url)); gen.appliesPreferredTrackTransform = true
-        if s.demo, let i = s.clips.firstIndex(where: { $0.id == clip.id }) {
-            let candidates = [Bundle.main.url(forResource: "thumb_\(i)", withExtension: "png", subdirectory: nil)?.path, (ProcessInfo.processInfo.environment["GDC_DEV_RES"] ?? "") + "/thumb_\(i).png"].compactMap { $0 }
-            for c in candidates { if let im = NSImage(contentsOfFile: c) { thumb = im; return } }
-            return
-        }
-        gen.maximumSize = CGSize(width: 480, height: 270)
-        if let r = try? await gen.image(at: CMTime(seconds: 1, preferredTimescale: 600)) { thumb = NSImage(cgImage: r.image, size: .zero) }
+        thumb = await ThumbStore.shared.image(path: clip.path, demoIndex: s.demo ? s.clips.firstIndex { $0.id == clip.id } : nil, maxPixel: 720)
     }
 }
 
