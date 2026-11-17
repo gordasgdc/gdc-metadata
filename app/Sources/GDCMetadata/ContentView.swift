@@ -20,8 +20,14 @@ struct ContentView: View {
         }
         .frame(minWidth: 780, minHeight: 520)
         .onDrop(of: [.fileURL], isTargeted: $targeted) { providers in
-            guard let p = providers.first else { return false }
-            _ = p.loadObject(ofClass: URL.self) { url, _ in if let u = url { Task { @MainActor in await s.scan(u.path) } } }
+            guard !providers.isEmpty else { return false }
+            // one gesture can carry many files; collect all of them (they arrive in any order), then import them as a single batch
+            let lock = NSLock(); var urls: [URL] = []; let group = DispatchGroup()
+            for p in providers {
+                group.enter()
+                _ = p.loadObject(ofClass: URL.self) { url, _ in if let u = url { lock.lock(); urls.append(u); lock.unlock() }; group.leave() }
+            }
+            group.notify(queue: .main) { let paths = urls.map(\.path).sorted(); Task { @MainActor in await s.scan(paths) } }
             return true
         }
         .overlay { if targeted { RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.accent, style: StrokeStyle(lineWidth: 2, dash: [8])).padding(6).allowsHitTesting(false) } }
@@ -60,13 +66,34 @@ struct ContentView: View {
         }
     }
 
+    func importPopover(_ i: AppState.ImportInfo) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L.f("import.result", i.imported)).font(.headline)
+            if i.duplicates > 0 { Text(L.f("import.dups", i.duplicates)).font(.caption).foregroundStyle(.secondary) }
+            if !i.rejected.isEmpty {
+                Text(L.t("import.rejected")).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.warn)
+                ScrollView { VStack(alignment: .leading, spacing: 6) { ForEach(i.rejected) { r in
+                    VStack(alignment: .leading, spacing: 1) { Text(URL(fileURLWithPath: r.path).lastPathComponent).font(.callout).lineLimit(1).truncationMode(.middle)
+                        Text(L.t("import.why." + r.reason)).font(.caption).foregroundStyle(.secondary) }
+                } } }.frame(maxHeight: 180)
+            }
+        }.padding(14).frame(width: 340)
+    }
+
     var statusBar: some View {
         HStack(spacing: 8) {
             if s.scanning { ProgressView(value: Double(s.clips.count), total: Double(max(s.found, 1))).frame(width: 90); Text(L.f("scan.progress", s.clips.count, s.found)).font(.caption) }
             else if !s.summary.isEmpty { let p = s.summary.split(separator: "|").compactMap { Int($0) }; if p.count == 3 { Text(L.f("scan.done", p[0], p[1], p[2])).font(.caption) } }
+            if let i = s.importInfo, !s.scanning {
+                Button { s.showImportInfo = true } label: {
+                    Text(i.rejected.isEmpty ? L.f("import.result", i.imported) : L.f("import.result.rej", i.imported, i.rejected.count)).font(.caption.weight(.semibold)).foregroundStyle(i.rejected.isEmpty ? Theme.ok : Theme.warn)
+                }.buttonStyle(.plain)
+                .popover(isPresented: $s.showImportInfo, arrowEdge: .top) { importPopover(i) }
+            }
             Spacer()
             Button { s.showResolve = true; Task { await s.loadResolvePlan() } } label: { Label(L.t("resolve.send"), systemImage: "paperplane.fill").font(.caption.weight(.semibold)) }
                 .buttonStyle(.borderedProminent).tint(Theme.accent).controlSize(.small).disabled(s.clips.isEmpty)
+            Text(AppVersion.label).font(.caption).foregroundStyle(.tertiary).help("\(L.t("about.title")): \(AppVersion.detail)")
             if s.demo { Text(L.t("demo.badge")).font(.caption).padding(.horizontal, 6).padding(.vertical, 2).background(Theme.accent.opacity(0.18), in: Capsule()) }
         }
         .padding(.horizontal, Theme.pad).padding(.vertical, 6).foregroundStyle(.secondary)

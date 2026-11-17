@@ -63,7 +63,7 @@ enum JSONValue: Codable, Hashable {
     }
 }
 
-struct ScanLine: Decodable { var event: String; var count: Int?; var clip: Clip?; var clips: Int?; var errors: Int?; var ms: Int? }
+struct ScanLine: Decodable { var event: String; var count: Int?; var clip: Clip?; var clips: Int?; var errors: Int?; var ms: Int?; var path: String?; var reason: String? }
 
 // Resolve bridge payloads
 struct ResolveField: Codable, Hashable, Identifiable { var key: String; var new: String; var current: String; var action: String; var id: String { key } }

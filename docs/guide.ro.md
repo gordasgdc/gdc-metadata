@@ -25,3 +25,20 @@
 
 - Inspectorul listează datele de mișcare detectate (telemetrie din clip, jurnale externe, proiecte .gyroflow) și unde au fost găsite.
 - Sursele apar ca **Compatibilitate Gyroflow neverificată**. Stabilizarea nu este oferită: nu există încă un traseu demonstrat înainte/după în Resolve.
+
+## Mai multe clipuri, foldere, al doilea lot
+
+- **Trage clipuri sau un folder** peste fereastră, într-un singur gest și oricâte. Sau **Alege folderul…** (⌘O) și selectează mai multe fișiere și foldere deodată.
+- Un import nou se **adaugă** la listă; primul lot se păstrează. **File → Golește lista** o ia de la zero.
+- Bara de jos spune câte clipuri au fost importate; dacă un fișier a fost respins, apasă „importate · respinse” pentru motivul fiecăruia.
+- Clipurile cu același nume din foldere diferite rămân separate.
+
+## Versiune și actualizări
+
+- Versiunea instalată e în bara de jos și în **Despre GDC Metadata** (versiune și build).
+- **Caută actualizări…** (meniul aplicației) răspunde mereu: versiune nouă, „Ești la zi” sau „Nu am putut verifica” cu motivul. **Actualizează acum** descarcă, verifică, instalează și repornește aplicația.
+- Vii de la 0.1.0 (fără actualizator): instalează o singură dată noul DMG; apoi actualizezi din aplicație.
+
+## Manual complet
+
+- Manual PDF complet: butonul / meniul **Ajutor**, sau https://gordas.dev/gdc-metadata/GDC-Metadata-Manual-ro.pdf

@@ -29,10 +29,27 @@ pub fn walk(root: &Path) -> Vec<PathBuf> {
     out
 }
 
-pub enum Event<'a> { Found(usize), Clip(&'a Clip), Done { clips: usize, errors: usize, ms: u128 } }
+pub enum Event<'a> { Found(usize), Clip(&'a Clip), Rejected(&'a str, &'a str), Done { clips: usize, errors: usize, ms: u128 } }
 
-pub fn scan(root: &Path, mut on: impl FnMut(Event)) -> Vec<Clip> {
-    let files = walk(root);
+/// Several roots (files and/or folders) in one pass: duplicates are dropped, anything that cannot be used is reported with a reason.
+pub fn collect(roots: &[PathBuf]) -> (Vec<PathBuf>, Vec<(String, &'static str)>) {
+    let mut files: Vec<PathBuf> = vec![];
+    let mut rejected: Vec<(String, &'static str)> = vec![];
+    let mut seen = std::collections::HashSet::new();
+    for r in roots {
+        let found = walk(r);
+        if !r.exists() { rejected.push((r.to_string_lossy().to_string(), "missing")); continue; }
+        if found.is_empty() { rejected.push((r.to_string_lossy().to_string(), if r.is_file() { "unsupported_type" } else { "no_media" })); continue; }
+        for f in found { if seen.insert(f.clone()) { files.push(f); } }
+    }
+    (files, rejected)
+}
+
+pub fn scan(root: &Path, on: impl FnMut(Event)) -> Vec<Clip> { scan_many(&[root.to_path_buf()], on) }
+
+pub fn scan_many(roots: &[PathBuf], mut on: impl FnMut(Event)) -> Vec<Clip> {
+    let (files, rejected) = collect(roots);
+    for (p, why) in &rejected { on(Event::Rejected(p, why)); }
     on(Event::Found(files.len()));
     let t0 = Instant::now();
     let bin = exiftool::locate();

@@ -2,11 +2,17 @@
 
 # GDC Metadata
 
+**Site: [https://gordas.dev/gdc-metadata/](https://gordas.dev/gdc-metadata/)**
+
 Citește camera, obiectivul, expunerea, balansul de alb, profilul de imagine și timecode-ul din foldere multi-cameră, arată de unde vine fiecare valoare și le trimite în Media Pool din DaVinci Resolve. Totul rămâne pe Mac; originalele nu sunt modificate.
 
-**[Descarcă pentru macOS](https://github.com/gordasgdc/gdc-metadata/releases/download/v0.1.0/GDCMetadata-0.1.0.dmg)** — Versiunea 0.1.0 · gratuit · DMG semnat și notarizat
+**[Descarcă pentru macOS](https://github.com/gordasgdc/gdc-metadata/releases/download/v0.1.1/GDCMetadata-0.1.1.dmg)** — Versiunea 0.1.1 · gratuit · DMG semnat și notarizat
 
 [English](README.md) · [Română](README.ro.md) · [Español](README.es.md) · Ghid de utilizare: [EN](docs/guide.en.md) · [RO](docs/guide.ro.md) · [ES](docs/guide.es.md)
+
+Manual (PDF): [RO](docs/manual/pdf/manual-ro.pdf) · [EN](docs/manual/pdf/manual-en.pdf) · [ES](docs/manual/pdf/manual-es.pdf) — https://gordas.dev/gdc-metadata/
+
+Ai deja 0.1.0? Acea versiune nu are actualizator: instalează o singură dată noul DMG (trage aplicația peste Applications și alege Înlocuiește). De atunci folosește meniul aplicației → Caută actualizări…
 
 ![](site/img/02_default_en.png)
 

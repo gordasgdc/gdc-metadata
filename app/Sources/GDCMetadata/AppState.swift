@@ -10,7 +10,12 @@ final class AppState: ObservableObject {
     @Published var found = 0
     @Published var scanning = false
     @Published var summary = ""
-    @Published var rootPath: String?
+    @Published var roots: [String] = []
+    /// Outcome of the latest import batch (clips added, duplicates skipped, files refused with a reason).
+    @Published var importInfo: ImportInfo?
+    @Published var showImportInfo = false
+    struct Rejected: Hashable, Identifiable { var path: String; var reason: String; var id: String { path + reason } }
+    struct ImportInfo: Equatable { var imported = 0; var duplicates = 0; var rejected: [Rejected] = [] }
     @Published var demo = false
     @Published var toast: String?
     @Published var showResolve = false
@@ -36,32 +41,51 @@ final class AppState: ObservableObject {
     }
 
     func chooseFolder() {
-        let p = NSOpenPanel(); p.canChooseDirectories = true; p.canChooseFiles = true; p.allowsMultipleSelection = false
+        let p = NSOpenPanel(); p.canChooseDirectories = true; p.canChooseFiles = true; p.allowsMultipleSelection = true
         p.prompt = "OK"
-        if p.runModal() == .OK, let u = p.url { Task { await scan(u.path) } }
+        if p.runModal() == .OK, !p.urls.isEmpty { let paths = p.urls.map(\.path); Task { await scan(paths) } }
     }
 
-    func scan(_ path: String) async {
-        demo = false; clips = []; selection = nil; scanning = true; found = 0; rootPath = path; summary = ""
-        resolveRows = []; resolveCurrent = [:]
+    func clearList() {
+        clips = []; selection = nil; roots = []; summary = ""; importInfo = nil; resolveRows = []; resolveCurrent = [:]; found = 0
+    }
+
+    /// Adds files and/or folders to the current list (a second batch never replaces the first). Clips with the same name in different folders stay separate (identity = full path).
+    func scan(_ path: String) async { await scan([path]) }
+    func scan(_ paths: [String]) async {
+        if demo { clearList(); demo = false }
+        let fresh = paths.filter { !roots.contains($0) }
+        roots += fresh
+        scanning = true; found = 0; resolveRows = []; resolveCurrent = [:]
+        var info = ImportInfo(); let before = clips.count
+        var known = Set(clips.map(\.id))
+        var errors = 0
         do {
-            try await Core.scan(path) { [weak self] line in
+            try await Core.scan(paths) { [weak self] line in
                 Task { @MainActor in
                     guard let self else { return }
                     switch line.event {
                     case "found": self.found = line.count ?? 0
-                    case "clip": if let c = line.clip { self.clips.append(c); if self.selection == nil { self.selection = c.id } }
-                    case "done": self.scanning = false; self.summary = "\(line.clips ?? 0)|\(line.errors ?? 0)|\(line.ms ?? 0)"
+                    case "rejected": info.rejected.append(Rejected(path: line.path ?? "", reason: line.reason ?? ""))
+                    case "clip": if let c = line.clip {
+                        if known.contains(c.id) { info.duplicates += 1 } else { known.insert(c.id); self.clips.append(c); info.imported += 1; if !c.ok { errors += 1 }; if self.selection == nil { self.selection = c.id } }
+                    }
+                    case "done": self.summary = "\(self.clips.count)|\(errors)|\(line.ms ?? 0)"
                     default: break
                     }
                 }
             }
-        } catch { summary = "0|1|0" }
+        } catch { info.rejected.append(Rejected(path: paths.first ?? "", reason: "core_missing")) }
+        // let the last streamed events land before publishing the outcome
+        try? await Task.sleep(nanoseconds: 150_000_000)
         scanning = false
+        if clips.count == before && info.rejected.isEmpty && info.duplicates == 0 { info.imported = 0 }
+        importInfo = info
+        if !info.rejected.isEmpty { showImportInfo = true }
     }
 
     func loadDemo() {
-        demo = true; rootPath = "/Demo"
+        demo = true; roots = ["/Demo"]
         guard let u = Bundle.main.url(forResource: "demo_clips", withExtension: "ndjson") ?? URL(fileURLWithPath: (ProcessInfo.processInfo.environment["GDC_DEV_RES"] ?? "") + "/demo_clips.ndjson") as URL?,
               let text = try? String(contentsOf: u, encoding: .utf8) else { return }
         let dec = JSONDecoder()
@@ -70,7 +94,7 @@ final class AppState: ObservableObject {
         summary = "\(clips.count)|0|182"
         // canned Resolve state for the demo
         resolveProject = "Demo_Wedding_Reel"
-        resolveCurrent = ["/Demo/CAM_A/C0001.mov": ["White Point (Kelvin)": "5700", "Camera Type": "Aurora Cine C1"]]
+        resolveCurrent = ["/Demo/CAM_A/C0001.mov": ["Camera Type": "Aurora Cine C1"], "/Demo/CAM_A/C0002.mov": ["White Point (Kelvin)": "5700"]]
         resolveRows = demoRows()
     }
 
@@ -97,8 +121,8 @@ final class AppState: ObservableObject {
         resolveLoading = true; resolveError = nil; lastApplied = false
         defer { resolveLoading = false }
         if demo { resolveRows = demoRows(); return }
-        guard let root = rootPath else { return }
-        let (code, out) = await Core.run(["resolve-plan", root])
+        guard !roots.isEmpty else { return }
+        let (code, out) = await Core.run(["resolve-plan"] + roots)
         guard code == 0, let data = out.data(using: .utf8), let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { resolveError = "core"; return }
         let reply = await Core.resolve(["action": "plan", "items": arr.map { ["path": $0["path"] as Any, "values": $0["values"] as Any] }])
         if !reply.ok { resolveError = reply.error ?? "resolve_unavailable"; resolveRows = []; return }
@@ -109,27 +133,26 @@ final class AppState: ObservableObject {
     }
 
     func applyResolve() async {
-        guard !demo, let root = rootPath else { toast = "Demo"; return }
+        guard !demo, !roots.isEmpty else { toast = "Demo"; return }
         resolveLoading = true; defer { resolveLoading = false }
-        let (_, out) = await Core.run(["resolve-plan", root])
+        let (_, out) = await Core.run(["resolve-plan"] + roots)
         guard let data = out.data(using: .utf8), let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return }
         let reply = await Core.resolve(["action": "apply", "items": arr.map { ["path": $0["path"] as Any, "values": $0["values"] as Any] }])
         if reply.ok { resolveRows = reply.results ?? []; lastApplied = true } else { resolveError = reply.error }
     }
 
     func saveCSV() async {
-        guard let root = rootPath, !demo else { return }
+        guard !roots.isEmpty, !demo else { return }
         let sp = NSSavePanel(); sp.nameFieldStringValue = "GDC-Metadata-Resolve.csv"
-        if sp.runModal() == .OK, let u = sp.url { _ = await Core.run(["resolve-csv", root, "--out", u.path]); toast = u.lastPathComponent }
+        if sp.runModal() == .OK, let u = sp.url { _ = await Core.run(["resolve-csv"] + roots + ["--out", u.path]); toast = u.lastPathComponent }
     }
 
     func exportSidecars(share: Bool, chooseDir: Bool) async -> String? {
-        guard let root = rootPath, !demo else { return nil }
-        var args = ["export", root]
+        guard !roots.isEmpty, !demo else { return nil }
+        var args = ["export"] + roots
         var dest: URL?
-        let rootURL = URL(fileURLWithPath: root)
-        let dirForWrite = rootURL.hasDirectoryPath ? root : rootURL.deletingLastPathComponent().path
-        if chooseDir || !FileManager.default.isWritableFile(atPath: dirForWrite) {
+        let allWritable = Set(clips.map(\.dir)).allSatisfy { FileManager.default.isWritableFile(atPath: $0) }
+        if chooseDir || !allWritable {
             let p = NSOpenPanel(); p.canChooseDirectories = true; p.canChooseFiles = false; p.canCreateDirectories = true
             if p.runModal() == .OK, let u = p.url { dest = u } else { return nil }
         }

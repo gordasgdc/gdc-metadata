@@ -2,11 +2,17 @@
 
 # GDC Metadata
 
+**Sitio web: [https://gordas.dev/gdc-metadata/](https://gordas.dev/gdc-metadata/)**
+
 Lee cámara, objetivo, exposición, balance de blancos, perfil de imagen y timecode de carpetas multicámara, muestra el origen de cada valor y los envía al Media Pool de DaVinci Resolve. Todo queda en tu Mac; los originales no se modifican.
 
-**[Descargar para macOS](https://github.com/gordasgdc/gdc-metadata/releases/download/v0.1.0/GDCMetadata-0.1.0.dmg)** — Versión 0.1.0 · gratis · DMG firmado y notarizado
+**[Descargar para macOS](https://github.com/gordasgdc/gdc-metadata/releases/download/v0.1.1/GDCMetadata-0.1.1.dmg)** — Versión 0.1.1 · gratis · DMG firmado y notarizado
 
 [English](README.md) · [Română](README.ro.md) · [Español](README.es.md) · Guía de uso: [EN](docs/guide.en.md) · [RO](docs/guide.ro.md) · [ES](docs/guide.es.md)
+
+Manual (PDF): [RO](docs/manual/pdf/manual-ro.pdf) · [EN](docs/manual/pdf/manual-en.pdf) · [ES](docs/manual/pdf/manual-es.pdf) — https://gordas.dev/gdc-metadata/
+
+¿Ya tienes la 0.1.0? Esa versión no tiene actualizador: instala una vez el nuevo DMG (arrastra la app sobre Applications y elige Reemplazar). Después usa el menú de la app → Buscar actualizaciones…
 
 ![](site/img/02_default_en.png)
 

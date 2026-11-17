@@ -11,6 +11,14 @@ fn sensitive(t: &RawTag) -> bool {
     n.contains("serial") || n == "directory" || n == "sourcefile" || n.contains("filepath") || n.contains("gps") || n.contains("owner") || n.contains("ownername") || n.contains("userid") || t.group.to_lowercase().contains("gps")
 }
 
+/// Nearest folder that contains every clip's folder (used to lay out `--out-dir` exports without name collisions).
+pub fn common_ancestor(clips: &[Clip]) -> PathBuf {
+    let mut it = clips.iter().map(|c| PathBuf::from(&c.dir));
+    let Some(mut acc) = it.next() else { return PathBuf::new() };
+    for d in it { while !d.starts_with(&acc) { if !acc.pop() { break; } } }
+    acc
+}
+
 pub fn sidecar_path(clip: &Clip, root: &Path, out_dir: Option<&Path>) -> PathBuf {
     let name = format!("{}{}", clip.name, SUFFIX);
     match out_dir {

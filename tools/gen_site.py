@@ -32,6 +32,8 @@ T = {
   deps_h="Requisitos", deps=["macOS 14 o posterior.", "ExifTool (por ejemplo: brew install exiftool).", "Python 3 de las Xcode Command Line Tools — solo para enviar a Resolve.", "DaVinci Resolve abierto, con External scripting en Local — solo para enviar a Resolve."],
   build="Build", note="Todas las imágenes usan datos de demostración sintéticos."),
 }
+EXTRA = {'en': {'web': 'Website', 'man': 'Manual (PDF)', 'once': 'Already on 0.1.0? That version has no updater: install the new DMG once (drag the app over Applications, choose Replace). From then on use the app menu → Check for Updates…', 'ver': 'Version and updates: the installed version is in the bottom bar and in About; Check for Updates… / Update Now install new releases from inside the app.'}, 'ro': {'web': 'Site', 'man': 'Manual (PDF)', 'once': 'Ai deja 0.1.0? Acea versiune nu are actualizator: instalează o singură dată noul DMG (trage aplicația peste Applications și alege Înlocuiește). De atunci folosește meniul aplicației → Caută actualizări…', 'ver': 'Versiune și actualizări: versiunea instalată e în bara de jos și în Despre; Caută actualizări… / Actualizează acum instalează versiunile noi din aplicație.'}, 'es': {'web': 'Sitio web', 'man': 'Manual (PDF)', 'once': '¿Ya tienes la 0.1.0? Esa versión no tiene actualizador: instala una vez el nuevo DMG (arrastra la app sobre Applications y elige Reemplazar). Después usa el menú de la app → Buscar actualizaciones…', 'ver': 'Versión y actualizaciones: la versión instalada está en la barra inferior y en Acerca de; Buscar actualizaciones… / Actualizar ahora instalan las versiones nuevas desde la app.'}}
+WEB = "https://gordas.dev/gdc-metadata/"
 PAGE = {"en": "index.html", "ro": "ro.html", "es": "es.html"}
 READ = {"en": "README.md", "ro": "README.ro.md", "es": "README.es.md"}
 IMGS = ["02_default_en", "03_search_en", "09_resolve_en", "07_motion_ready_en"]
@@ -49,7 +51,14 @@ figure img{display:block;width:100%;height:auto}figcaption{padding:10px 14px;col
 ul,ol{padding-left:1.2rem}li{margin:6px 0}.note{border-left:3px solid var(--accent);padding:4px 12px;color:var(--mute)}
 a{color:var(--accent)}.btn{color:var(--on)}footer{color:var(--mute);font-size:.85rem;margin-top:40px}code{background:var(--panel);padding:1px 5px;border-radius:5px}</style>"""
 esc = lambda s: html.escape(s, quote=False)
+import shutil
+(ROOT / "site").mkdir(exist_ok=True)
+for k in T:
+    src = ROOT / "docs" / "manual" / "pdf" / f"manual-{k}.pdf"
+    if src.exists():
+        shutil.copy(src, ROOT / "site" / f"GDC-Metadata-Manual-{k}.pdf"); shutil.copy(src, ROOT / "site" / f"GDC-Metadata-Manual-{VER}-{k}.pdf")
 for k, d in T.items():
+    x = EXTRA[k]
     nav = "".join(f'<a href="{PAGE[o]}"{" aria-current=page" if o == k else ""}>{T[o]["lang"]}</a>' for o in T)
     idx = [0, 1, 2, 3]
     figs = "".join(f'<h2>{esc(d["h"][i])}</h2><figure><img src="img/{n}.png" alt="{esc(d["c"][i])}" loading="lazy"><figcaption>{esc(d["c"][i])}</figcaption></figure>' for i, n in zip(idx, IMGS))
@@ -62,6 +71,8 @@ for k, d in T.items():
 {figs}
 <h2>{esc(d["deps_h"])}</h2><ul>{"".join(f"<li>{esc(x)}</li>" for x in d["deps"])}</ul>
 <ul>{"".join(f"<li>{esc(x)}</li>" for x in d["b"])}</ul>
+<p class="note">{esc(x["ver"])}<br>{esc(x["once"])}</p>
+<h2>{esc(x["man"])}</h2><p>{"".join(f'<a class="btn" href="GDC-Metadata-Manual-{o}.pdf">PDF · {T[o]["lang"]}</a> ' for o in T)}</p>
 <p><a href="guide-{k}.html">{esc(d["guide"])}</a> · <a href="{REPO}">GitHub</a> · <a href="{REPO}/blob/main/LICENSE">{esc(d["lic"])}</a></p><p class="note">{esc(d["note"])}</p>
 <footer>© 2026 Cristi Gordaș · gordas.dev/gdc-metadata</footer></main></body></html>'''
     (ROOT / "site" / PAGE[k]).write_text(page)
@@ -69,11 +80,17 @@ for k, d in T.items():
 
 # GDC Metadata
 
+**{x["web"]}: [https://gordas.dev/gdc-metadata/](https://gordas.dev/gdc-metadata/)**
+
 {d["lead"]}
 
 **[{d["dl"]}]({DL})** — {d["dlnote"]}
 
 [English](README.md) · [Română](README.ro.md) · [Español](README.es.md) · {d["guide"]}: [EN](docs/guide.en.md) · [RO](docs/guide.ro.md) · [ES](docs/guide.es.md)
+
+{x["man"]}: [RO](docs/manual/pdf/manual-ro.pdf) · [EN](docs/manual/pdf/manual-en.pdf) · [ES](docs/manual/pdf/manual-es.pdf) — {WEB}
+
+{x["once"]}
 
 ![](site/img/02_default_en.png)
 

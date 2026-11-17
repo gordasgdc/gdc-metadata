@@ -6,13 +6,17 @@ enum Lang: String, CaseIterable, Identifiable { case ro, en, es
 }
 
 final class Loc: ObservableObject {
+    static let shared = Loc()
     @AppStorage("lang") var langRaw: String = {
         let l = Locale.preferredLanguages.first ?? "ro"
         return l.hasPrefix("en") ? "en" : l.hasPrefix("es") ? "es" : "ro"
     }() { willSet { objectWillChange.send() } }
     var lang: Lang { Lang(rawValue: langRaw) ?? .ro }
-    /// Public guide in the current UI language (published with the product page).
-    func openGuide() { if let u = URL(string: "https://gordas.dev/gdc-metadata/guide-\(lang.rawValue).html") { NSWorkspace.shared.open(u) } }
+    /// Manual (PDF) in the current UI language: the copy bundled with the app, else the one published on the product page.
+    func openGuide() {
+        if let u = Bundle.main.url(forResource: "manual-\(lang.rawValue)", withExtension: "pdf") { NSWorkspace.shared.open(u); return }
+        if let u = URL(string: "https://gordas.dev/gdc-metadata/GDC-Metadata-Manual-\(lang.rawValue).pdf") { NSWorkspace.shared.open(u) }
+    }
     func t(_ k: String) -> String { (Self.table[k] ?? [:])[lang] ?? Self.table[k]?[.en] ?? k }
     func f(_ k: String, _ a: CVarArg...) -> String { String(format: t(k), arguments: a) }
 
@@ -90,7 +94,43 @@ final class Loc: ObservableObject {
         "resolve.matches": [.ro: "%d potriviri · %d absente · %d ambigue", .en: "%d matched · %d absent · %d ambiguous", .es: "%d coinciden · %d ausentes · %d ambiguos"],
         "sec.motion": [.ro: "Mișcare și stabilizare", .en: "Motion & stabilization", .es: "Movimiento y estabilización"],
         "mo.unverified": [.ro: "Compatibilitate Gyroflow neverificată", .en: "Gyroflow compatibility unverified", .es: "Compatibilidad con Gyroflow sin verificar"],
-        "help.guide": [.ro: "Ghid de utilizare", .en: "User guide", .es: "Guía de uso"],
+        "help.guide": [.ro: "Manual de utilizare (PDF)", .en: "User manual (PDF)", .es: "Manual de usuario (PDF)"],
+        "import.result": [.ro: "%d clipuri importate", .en: "%d clips imported", .es: "%d clips importados"],
+        "import.result.rej": [.ro: "%d importate · %d respinse", .en: "%d imported · %d rejected", .es: "%d importados · %d rechazados"],
+        "import.dups": [.ro: "%d deja în listă (omise)", .en: "%d already in the list (skipped)", .es: "%d ya estaban en la lista (omitidos)"],
+        "import.rejected": [.ro: "Fișiere respinse", .en: "Rejected files", .es: "Archivos rechazados"],
+        "import.why.missing": [.ro: "Fișierul sau folderul nu mai există.", .en: "The file or folder no longer exists.", .es: "El archivo o la carpeta ya no existe."],
+        "import.why.unsupported_type": [.ro: "Tip de fișier neacceptat (nu e un clip video).", .en: "Unsupported file type (not a video clip).", .es: "Tipo de archivo no admitido (no es un clip de vídeo)."],
+        "import.why.no_media": [.ro: "Folderul nu conține clipuri acceptate.", .en: "The folder contains no supported clips.", .es: "La carpeta no contiene clips admitidos."],
+        "import.why.core_missing": [.ro: "Componenta de citire lipsește din aplicație.", .en: "The reader component is missing from the app.", .es: "Falta el componente de lectura de la app."],
+        "clear.list": [.ro: "Golește lista", .en: "Clear list", .es: "Vaciar lista"],
+        "upd.check": [.ro: "Caută actualizări…", .en: "Check for Updates…", .es: "Buscar actualizaciones…"],
+        "upd.install": [.ro: "Actualizează acum", .en: "Update Now", .es: "Actualizar ahora"],
+        "upd.now": [.ro: "Actualizează acum", .en: "Update Now", .es: "Actualizar ahora"],
+        "upd.later": [.ro: "Mai târziu", .en: "Later", .es: "Más tarde"],
+        "upd.new.title": [.ro: "Versiune nouă disponibilă: v%@", .en: "New version available: v%@", .es: "Nueva versión disponible: v%@"],
+        "upd.new.body": [.ro: "Instalată: v%@. „Actualizează acum” descarcă, verifică și instalează versiunea nouă, apoi repornește aplicația.", .en: "Installed: v%@. “Update Now” downloads, verifies and installs the new version, then restarts the app.", .es: "Instalada: v%@. «Actualizar ahora» descarga, verifica e instala la nueva versión y reinicia la app."],
+        "upd.uptodate": [.ro: "Ești la zi", .en: "You're up to date", .es: "Estás al día"],
+        "upd.uptodate.body": [.ro: "Rulezi cea mai recentă versiune (v%@).", .en: "You are running the latest version (v%@).", .es: "Ejecutas la versión más reciente (v%@)."],
+        "upd.fail.title": [.ro: "Nu am putut verifica actualizările", .en: "Could not check for updates", .es: "No se pudo buscar actualizaciones"],
+        "upd.fail.hint": [.ro: "Verifică conexiunea la internet și încearcă din nou.", .en: "Check your internet connection and try again.", .es: "Comprueba tu conexión a internet e inténtalo de nuevo."],
+        "upd.fail.install": [.ro: "Actualizarea nu s-a putut instala", .en: "The update could not be installed", .es: "No se pudo instalar la actualización"],
+        "upd.fail.unchanged": [.ro: "Versiunea instalată a rămas neschimbată.", .en: "The installed version was left unchanged.", .es: "La versión instalada no se ha modificado."],
+        "upd.progress.download": [.ro: "Se descarcă GDC Metadata v%@…", .en: "Downloading GDC Metadata v%@…", .es: "Descargando GDC Metadata v%@…"],
+        "upd.progress.verify": [.ro: "Se verifică pachetul…", .en: "Verifying the package…", .es: "Verificando el paquete…"],
+        "upd.progress.install": [.ro: "Se instalează…", .en: "Installing…", .es: "Instalando…"],
+        "upd.progress.done": [.ro: "Gata. Aplicația repornește…", .en: "Done. The app is restarting…", .es: "Listo. La app se reinicia…"],
+        "upd.err.status": [.ro: "Serverul a răspuns cu status %d.", .en: "The server answered with status %d.", .es: "El servidor respondió con el estado %d."],
+        "upd.err.manifest": [.ro: "Răspunsul serverului nu este un manifest de actualizare valid.", .en: "The server's answer is not a valid update manifest.", .es: "La respuesta del servidor no es un manifiesto de actualización válido."],
+        "upd.err.signature": [.ro: "Semnătura manifestului nu este validă; actualizarea a fost respinsă.", .en: "The manifest signature is not valid; the update was rejected.", .es: "La firma del manifiesto no es válida; se rechazó la actualización."],
+        "upd.err.origin": [.ro: "Adresa de descărcare nu provine din sursa oficială; actualizarea a fost respinsă.", .en: "The download address is not from the official source; the update was rejected.", .es: "La dirección de descarga no es de la fuente oficial; se rechazó la actualización."],
+        "upd.err.hash": [.ro: "Pachetul descărcat nu corespunde sumei de control din manifest (modificat sau corupt); a fost respins.", .en: "The downloaded package does not match the checksum in the manifest (modified or corrupt); it was rejected.", .es: "El paquete descargado no coincide con la suma de control del manifiesto (modificado o dañado); se rechazó."],
+        "upd.err.noapp": [.ro: "Imaginea descărcată nu conține GDC Metadata.", .en: "The downloaded image does not contain GDC Metadata.", .es: "La imagen descargada no contiene GDC Metadata."],
+        "upd.err.version": [.ro: "Imaginea conține v%@, nu v%@.", .en: "The image contains v%@, not v%@.", .es: "La imagen contiene v%@, no v%@."],
+        "upd.err.sign": [.ro: "Semnătura aplicației noi nu este a GDC.", .en: "The new app's signature is not GDC's.", .es: "La firma de la nueva app no es la de GDC."],
+        "upd.err.gatekeeper": [.ro: "Gatekeeper nu acceptă aplicația nouă (nenotarizată).", .en: "Gatekeeper does not accept the new app (not notarized).", .es: "Gatekeeper no acepta la nueva app (sin notarizar)."],
+        "about.title": [.ro: "Despre GDC Metadata", .en: "About GDC Metadata", .es: "Acerca de GDC Metadata"],
+        "about.credits": [.ro: "Gratuit · licență MIT · © 2026 Cristi Gordaș\nhttps://gordas.dev/gdc-metadata/", .en: "Free · MIT licence · © 2026 Cristi Gordaș\nhttps://gordas.dev/gdc-metadata/", .es: "Gratis · licencia MIT · © 2026 Cristi Gordaș\nhttps://gordas.dev/gdc-metadata/"],
         "mo.detected": [.ro: "Date detectate", .en: "Data detected", .es: "Datos detectados"],
         "mo.ready": [.ro: "Proiect pregătit", .en: "Project prepared", .es: "Proyecto preparado"],
         "mo.ready.no": [.ro: "Neconfirmat — profilul de obiectiv și sincronizarea se fac în Gyroflow", .en: "Not confirmed — lens profile and sync are done in Gyroflow", .es: "Sin confirmar — el perfil de lente y la sincronización se hacen en Gyroflow"],

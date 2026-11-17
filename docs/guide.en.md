@@ -25,3 +25,20 @@
 
 - The inspector lists detected motion data (in-clip telemetry, external logs, .gyroflow projects) with where each was found.
 - Sources are shown as **Gyroflow compatibility unverified**. Stabilization is not offered: no before/after route has been demonstrated in Resolve yet.
+
+## Several clips, folders, second batch
+
+- **Drag clips or a folder** onto the window, in one gesture and in any number. Or use **Choose folder…** (⌘O) and select several files and folders at once.
+- A new import is **added** to the list; the first batch is kept. **File → Clear list** starts over.
+- The bottom bar says how many clips were imported; if any file was refused, click “imported · rejected” to see the reason for each.
+- Same-name clips from different folders stay separate.
+
+## Version and updates
+
+- The installed version is in the bottom bar and in **About GDC Metadata** (version and build).
+- **Check for Updates…** (app menu) always answers: new version, “You're up to date”, or “Could not check” with the reason. **Update Now** downloads, verifies and installs, then restarts the app.
+- Coming from 0.1.0 (no updater): install the new DMG once; later updates are done from the app.
+
+## Full manual
+
+- Complete PDF manual: Help button / menu **Help**, or https://gordas.dev/gdc-metadata/GDC-Metadata-Manual-en.pdf

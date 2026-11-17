@@ -11,13 +11,15 @@ APP="$EV/builds/GDC Metadata.app"
 rm -rf "$APP"; mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$EV/builds/app/release/GDCMetadata" "$APP/Contents/MacOS/GDCMetadata"
 cp "$EV/builds/core/release/gdc-metadata-core" "$APP/Contents/Resources/"
+cp "$HERE/app/Resources/GDCMetadata.icns" "$APP/Contents/Resources/"
 cp "$HERE/LICENSE" "$HERE/NOTICE" "$HERE/THIRD_PARTY_NOTICES.md" "$APP/Contents/Resources/"
+cp "$HERE"/docs/manual/pdf/manual-*.pdf "$APP/Contents/Resources/"
 cp "$HERE/app/Resources/resolve_bridge.py" "$HERE/app/Resources/demo_clips.ndjson" "$HERE"/app/Resources/thumb_*.png "$APP/Contents/Resources/"
 cat > "$APP/Contents/Info.plist" <<P
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>CFBundleIdentifier</key><string>dev.gordas.GDCMetadata</string><key>CFBundleName</key><string>GDC Metadata</string>
-<key>CFBundleExecutable</key><string>GDCMetadata</string><key>CFBundleShortVersionString</key><string>${GDC_VERSION:-0.1.0}</string><key>CFBundleVersion</key><string>1</string>
+<key>CFBundleExecutable</key><string>GDCMetadata</string><key>CFBundleShortVersionString</key><string>${GDC_VERSION:-0.1.0}</string><key>CFBundleVersion</key><string>${GDC_BUILD:-$(git -C "$HERE" rev-list --count HEAD 2>/dev/null || echo 1)}</string><key>CFBundleIconFile</key><string>GDCMetadata</string><key>NSHumanReadableCopyright</key><string>© 2026 Cristi Gordaș · MIT</string>
 <key>CFBundlePackageType</key><string>APPL</string><key>LSMinimumSystemVersion</key><string>14.0</string><key>NSHighResolutionCapable</key><true/>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 </dict></plist>

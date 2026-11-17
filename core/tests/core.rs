@@ -87,3 +87,21 @@ fn motion_levels_follow_real_gyroflow_project() {
     assert!(motion::detect(&clip, &[]).ready);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn multi_root_scan_rejects_with_reason_and_dedupes() {
+    let base = std::env::temp_dir().join("gdcmeta_multi");
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(base.join("a")).unwrap(); std::fs::create_dir_all(base.join("b")).unwrap(); std::fs::create_dir_all(base.join("empty")).unwrap();
+    std::fs::write(base.join("a/C1.mov"), b"x").unwrap();
+    std::fs::write(base.join("b/C1.mov"), b"x").unwrap();
+    std::fs::write(base.join("notes.txt"), b"x").unwrap();
+    let roots = vec![base.join("a/C1.mov"), base.join("b"), base.join("a/C1.mov"), base.join("notes.txt"), base.join("empty"), base.join("missing.mov")];
+    let (files, rejected) = scan::collect(&roots);
+    assert_eq!(files.len(), 2, "same name in two folders = two clips, duplicate root skipped");
+    assert_eq!(rejected.len(), 3, "txt, empty folder, missing file: {:?}", rejected);
+    let mut n = 0; let clips = scan::scan_many(&roots, |e| if let scan::Event::Rejected(..) = e { n += 1 });
+    assert_eq!(n, 3); assert_eq!(clips.len(), 2);
+    assert_eq!(export::common_ancestor(&clips), base);
+    let _ = std::fs::remove_dir_all(&base);
+}

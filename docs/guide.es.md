@@ -25,3 +25,20 @@
 
 - El inspector lista los datos de movimiento detectados (telemetría en el clip, registros externos, proyectos .gyroflow) y dónde se encontró cada uno.
 - Las fuentes se muestran como **Compatibilidad con Gyroflow sin verificar**. No se ofrece estabilización: aún no hay una ruta antes/después demostrada en Resolve.
+
+## Varios clips, carpetas, segundo lote
+
+- **Arrastra clips o una carpeta** sobre la ventana, en un solo gesto y en cualquier número. O usa **Elegir carpeta…** (⌘O) y selecciona varios archivos y carpetas a la vez.
+- Una importación nueva se **añade** a la lista; el primer lote se conserva. **File → Vaciar lista** empieza de cero.
+- La barra inferior indica cuántos clips se importaron; si se rechazó algún archivo, pulsa «importados · rechazados» para ver el motivo de cada uno.
+- Los clips con el mismo nombre de carpetas distintas siguen separados.
+
+## Versión y actualizaciones
+
+- La versión instalada está en la barra inferior y en **Acerca de GDC Metadata** (versión y build).
+- **Buscar actualizaciones…** (menú de la app) siempre responde: versión nueva, «Estás al día» o «No se pudo buscar» con el motivo. **Actualizar ahora** descarga, verifica, instala y reinicia la app.
+- Si vienes de la 0.1.0 (sin actualizador): instala una vez el nuevo DMG; después actualizas desde la app.
+
+## Manual completo
+
+- Manual PDF completo: botón / menú **Ayuda**, o https://gordas.dev/gdc-metadata/GDC-Metadata-Manual-es.pdf

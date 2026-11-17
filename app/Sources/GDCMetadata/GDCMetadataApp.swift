@@ -5,6 +5,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
     func applicationDidFinishLaunching(_ n: Notification) {
         NSApp.setActivationPolicy(.regular); NSApp.activate(ignoringOtherApps: true)
+        let a = ProcessInfo.processInfo.arguments
+        if !a.contains("--snapshot") && !a.contains("--no-update") { Task { @MainActor in try? await Task.sleep(nanoseconds: 2_500_000_000); UpdateChecker.shared.checkAtLaunch() } }
     }
 }
 
@@ -12,7 +14,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct GDCMetadataApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject var state = AppState()
-    @StateObject var loc = Loc()
+    @StateObject var loc = Loc.shared
+    @StateObject var updater = UpdateChecker.shared
     let args = ProcessInfo.processInfo.arguments
 
     func arg(_ k: String) -> String? { args.firstIndex(of: k).flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } }
@@ -25,6 +28,15 @@ struct GDCMetadataApp: App {
         .defaultSize(width: 1180, height: 760)
         .commands {
             CommandGroup(replacing: .newItem) { Button("Open…") { state.chooseFolder() }.keyboardShortcut("o") }
+            CommandGroup(replacing: .appInfo) {
+                Button(loc.t("about.title")) {
+                    NSApp.orderFrontStandardAboutPanel(options: [.applicationName: "GDC Metadata", .applicationVersion: AppVersion.current, .version: AppVersion.build,
+                        .credits: NSAttributedString(string: loc.t("about.credits"), attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.secondaryLabelColor])])
+                }
+                Button(loc.t("upd.check")) { updater.checkManually() }
+                if let a = updater.available { Button("\(loc.t("upd.install")) — v\(a.version)") { updater.installNow() } }
+            }
+            CommandGroup(after: .newItem) { Button(loc.t("clear.list")) { state.clearList() }.keyboardShortcut(.delete, modifiers: .command).disabled(state.clips.isEmpty) }
             CommandGroup(replacing: .help) { Button(loc.t("help.guide")) { loc.openGuide() }.keyboardShortcut("?") }
         }
     }
@@ -32,7 +44,7 @@ struct GDCMetadataApp: App {
     @MainActor func launchActions() async {
         if let l = arg("--lang") { loc.langRaw = l }
         if let o = arg("--open") { state.openIDs = Set(o.split(separator: ",").map(String.init)) }
-        if let p = arg("--scan") { await state.scan(p) }
+        if let p = arg("--scan") { await state.scan(p.split(separator: "|").map(String.init)) }
         else if args.contains("--demo") { state.loadDemo() }
         if let n = arg("--select"), let i = Int(n), i < state.clips.count { state.selection = state.clips[i].id }
         if args.contains("--expand") { state.expandAll = true }

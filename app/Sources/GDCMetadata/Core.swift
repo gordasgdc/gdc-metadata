@@ -17,9 +17,9 @@ enum Core {
     }
 
     /// Streams NDJSON events from `scan`.
-    static func scan(_ path: String, onLine: @escaping (ScanLine) -> Void) async throws {
+    static func scan(_ paths: [String], onLine: @escaping (ScanLine) -> Void) async throws {
         guard let bin = binary else { throw CoreError.missing }
-        let p = Process(); p.executableURL = bin; p.arguments = ["scan", path]
+        let p = Process(); p.executableURL = bin; p.arguments = ["scan"] + paths
         let pipe = Pipe(); p.standardOutput = pipe; p.standardError = FileHandle.nullDevice
         try p.run()
         let dec = JSONDecoder()
