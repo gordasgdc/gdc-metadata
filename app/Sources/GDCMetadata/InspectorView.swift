@@ -10,8 +10,8 @@ struct InspectorView: View {
     @State private var thumb: NSImage?
 
     static let sections: [(id: String, ids: [String])] = [
-        ("camera", ["make", "camera_model", "lens", "focal_length"]),
-        ("exposure", ["aperture", "iso", "shutter"]),
+        ("camera", ["make", "camera_model", "lens", "focal_length", "focal_eq", "focus_distance", "focus_mode"]),
+        ("exposure", ["aperture", "iso", "shutter", "ae_mode"]),
         ("color", ["wb_mode", "wb_temp", "tint", "picture_profile"]),
         ("file", ["resolution", "frame_rate", "codec", "timecode", "audio", "date_recorded", "file_size"]),
     ]
@@ -109,8 +109,9 @@ struct InspectorView: View {
         VStack(alignment: .leading, spacing: 0) {
             inputBlock
             summaryRow("sum.camera", clip.value("camera_model"))
-            summaryRow("sum.lens", [clip.value("lens"), clip.value("focal_length")].compactMap { $0 }.joined(separator: " · "))
-            summaryRow("sum.wb", wbText, fieldID: "wb_temp")
+            summaryRow("sum.lens", lensText, fieldID: "lens", also: ["focal_length"])
+            summaryRow("sum.focus", [clip.value("focus_distance"), clip.value("focus_mode")].compactMap { $0 }.joined(separator: " · "), fieldID: "focus_distance", also: ["focus_mode"])
+            summaryRow("sum.wb", wbText, fieldID: "wb_mode", also: ["wb_temp"])
             summaryRow("sum.exposure", [clip.value("aperture"), clip.value("shutter"), clip.value("iso")].compactMap { $0 }.joined(separator: " · "))
             summaryRow("sum.profile", clip.value("picture_profile"), fieldID: "picture_profile")
             Text(L.t("profile.preset.note")).font(.caption2).foregroundStyle(.tertiary).padding(.top, 2).fixedSize(horizontal: false, vertical: true)
@@ -170,15 +171,34 @@ struct InspectorView: View {
         let m = clip.value("wb_mode"), t = clip.value("wb_temp")
         let s = [m, t].compactMap { $0 }.joined(separator: " · "); return s.isEmpty ? nil : s
     }
+    var lensText: String? {
+        var f = clip.value("focal_length"); if let e = clip.value("focal_eq"), f != nil { f! += " (\(e) " + L.t("eq35") + ")" }
+        let s = [clip.value("lens"), f].compactMap { $0 }.joined(separator: " · "); return s.isEmpty ? nil : s
+    }
+    /// Short provenance line shown under a summary value: where it was read and, when it is a single moment, which one.
+    func sourceCaption(_ ids: [String]) -> String? {
+        let fs = ids.compactMap { clip.field($0) }
+        let found = fs.filter { $0.value != nil && $0.primary != nil }
+        if let f = found.first {
+            var s = f.primary!.label
+            if found.contains(where: { $0.note == "first_frame" }) { s += " · " + L.t("firstframe") }
+            return s
+        }
+        if let n = fs.compactMap({ $0.note }).first(where: { ["sony_no_lens", "sony_no_kelvin"].contains($0) }) { return L.t("note." + n) }
+        return nil
+    }
     var profileText: String? {
         let p = clip.value("curve") ?? clip.value("picture_profile"); let g = clip.value("gamut")
         let s = [p, g].compactMap { $0 }.joined(separator: " · "); return s.isEmpty ? nil : s
     }
-    func summaryRow(_ key: String, _ value: String?, fieldID: String? = nil) -> some View {
+    func summaryRow(_ key: String, _ value: String?, fieldID: String? = nil, also: [String] = []) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(L.t(key)).foregroundStyle(.secondary).frame(width: Theme.labelWidth, alignment: .leading)
-            if let v = value, !v.isEmpty { Text(v).font(.system(size: 15, weight: .medium).monospacedDigit()).textSelection(.enabled) }
-            else { Text(L.t("st.unavailable")).foregroundStyle(.secondary).italic() }
+            VStack(alignment: .leading, spacing: 1) {
+                if let v = value, !v.isEmpty { Text(v).font(.system(size: 15, weight: .medium).monospacedDigit()).textSelection(.enabled) }
+                else { Text(L.t("st.unavailable")).foregroundStyle(.secondary).italic() }
+                if let fid = fieldID, let c = sourceCaption([fid] + also) { Text(c).font(.caption2).foregroundStyle(.tertiary).fixedSize(horizontal: false, vertical: true) }
+            }
             Spacer()
         }.padding(.vertical, 5).overlay(alignment: .bottom) { Divider().opacity(0.6) }
     }
@@ -364,7 +384,7 @@ struct FieldRow: View {
             if let p = field.primary { refView(p, primary: true) } else if let n = field.note { Text(L.t("note." + n)).font(.callout).foregroundStyle(.secondary) } else { Text(L.t("note.no_source_tag")).font(.callout).foregroundStyle(.secondary) }
             if let r = resolveValue { Divider(); VStack(alignment: .leading) { Text(L.t("diff.resolve")).font(.caption).foregroundStyle(.secondary); Text(r).font(.body.monospacedDigit()).foregroundStyle(Theme.accent) } }
             if !field.alternates.isEmpty { Divider(); Text(L.t("detail.alt")).font(.caption).foregroundStyle(.secondary); ForEach(field.alternates, id: \.self) { refView($0, primary: false) } }
-            if let n = field.note, ["differs", "close_values", "pair_rule", "container_label", "viewing_metadata", "ul_unmapped", "cndm_derived", "cndm_unmapped", "maker_hint", "user_confirmed", "sony_nrt", "sony_unmapped"].contains(n) { Divider(); Text(L.t("note." + n)).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+            if let n = field.note, ["differs", "close_values", "pair_rule", "container_label", "viewing_metadata", "ul_unmapped", "cndm_derived", "cndm_unmapped", "maker_hint", "user_confirmed", "sony_nrt", "sony_unmapped", "first_frame", "sony_no_lens", "sony_no_kelvin"].contains(n) { Divider(); Text(L.t("note." + n)).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
         }
     }
     func refView(_ r: SourceRef, primary: Bool) -> some View {

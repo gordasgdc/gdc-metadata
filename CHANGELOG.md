@@ -4,6 +4,7 @@
 - Batches: native multi-selection (click, Shift, ⌘, ⌘A); **Export N clips** and **Send N to Resolve** act on exactly the selection (also when a filter hides part of it); **Remove from list** and **Clear list** next to the table.
 - **Accept for export**: the detected gamut + curve pair is confirmed per clip (reversible); read, inferred and confirmed values are shown distinctly and exported with their provenance.
 - Sony XAVC S MP4: curve, gamut, camera, exposure and timecode read from the embedded Sony metadata (or the card-structure XML); S-Gamut3.Cine and S-Gamut3 are told apart.
+- Sony A7 IV: focal length (and 35 mm equivalent), focus distance, focus area, exposure mode and WB mode read from the timed metadata (first frame, labelled as such); lens model, Kelvin and tint stay "Not detected" with the reason. Each summary value shows its source.
 - Values the readers do not find show as "Not detected" instead of a claim about the file.
 - Resolve: informative metadata and input space are separated in the sheet; input space names verified for Sony, Panasonic V-Log and Canon pairs.
 

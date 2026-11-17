@@ -3,13 +3,14 @@
 One row per make|model|container+readers; a representative clip (most confirmed fields). Output is INTERNAL (clip names are private)."""
 import json, subprocess, sys
 core, out, roots = sys.argv[1], sys.argv[2], sys.argv[3:]
-FIELDS = ["make","camera_model","lens","focal_length","aperture","iso","shutter","wb_mode","wb_temp","tint","picture_profile","curve","gamut","timecode"]
+FIELDS = ["make","camera_model","lens","focal_length","focal_eq","focus_distance","focus_mode","ae_mode","aperture","iso","shutter","wb_mode","wb_temp","tint","picture_profile","curve","gamut","timecode"]
 rows = {}
 p = subprocess.Popen([core, "scan"] + roots, stdout=subprocess.PIPE, text=True)
 for line in p.stdout:
     j = json.loads(line)
     if j.get("event") != "clip": continue
     c = j["clip"]; f = {x["id"]: x for x in c["fields"]}
+    for _i in FIELDS: f.setdefault(_i, {"value": None, "primary": None, "note": None})
     key = (f["make"]["value"] or "-", f["camera_model"]["value"] or "-", c["ext"].lower(), "+".join(c["readers"]))
     ok = [i for i in FIELDS if f[i]["value"]]
     if key not in rows or len(ok) > rows[key][0]: rows[key] = (len(ok), c, f, ok)

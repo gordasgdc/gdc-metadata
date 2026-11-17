@@ -264,6 +264,25 @@ fn fill_from_sony(out: &mut Vec<Field>, so: &Sony) {
     if let Some(f) = so.fnumber { put(out, dec("aperture", "exposure", format!("f/{}", trim_num(f, 1)), "rtmd 0x8000", Value::from(f), so)); }
     if let Some((n, d)) = so.exposure { if n > 0 && d > 0 { put(out, dec("shutter", "exposure", fmt_shutter(n as f64 / d as f64), "rtmd 0x8109", Value::from(format!("{}/{}", n, d)), so)); } }
     if let Some(i) = so.iso { if i > 0 { put(out, dec("iso", "exposure", format!("ISO {}", i), "rtmd 0x810b", Value::from(i), so)); } }
+    // lens / focus / exposure-mode / WB items of the FIRST rtmd sample (frame 0 only; not tracked over the clip)
+    let r = &so.rt;
+    let ff = |mut f: Field| { f.note = Some("first_frame".into()); f };
+    let add = |out: &mut Vec<Field>, f: Field| { if let Some(x) = out.iter_mut().find(|x| x.id == f.id) { if x.value.is_none() { *x = f; } } else { out.push(f); } };
+    if let Some(mm) = r.focal_mm { if mm > 0.0 { put(out, ff(dec("focal_length", "camera", format!("{} mm", trim_num(mm, 1)), "rtmd 0x8005", Value::from(mm), so))); } }
+    if let Some(mm) = r.focal_eq_mm { if mm > 0.0 { add(out, ff(dec("focal_eq", "camera", format!("{} mm", trim_num(mm, 1)), "rtmd 0x8004", Value::from(mm), so))); } }
+    if let Some(m) = r.focus_m { if m > 0.0 { add(out, ff(dec("focus_distance", "camera", format!("{} m", trim_num(m, 2)), "rtmd 0x8001", Value::from(m), so))); } }
+    if let Some(a) = r.af_area { add(out, ff(dec("focus_mode", "camera", a.to_string(), "rtmd 0x8101", Value::from(a), so))); }
+    if let Some(a) = r.ae_mode { add(out, ff(dec("ae_mode", "exposure", a.to_string(), "rtmd 0x8100", Value::from(a), so))); }
+    if let Some(a) = r.awb_mode {
+        let v = if a == "Automatic" { "Auto" } else { a };
+        let mut f = ff(dec("wb_mode", "color", v.to_string(), "rtmd 0x810d", Value::from(a), so));
+        if let Some(c) = r.wb_code { f.alternates.push(SourceRef { source: "exiftool".into(), group: "Sony rtmd".into(), tag: "0xe303 WhiteBalance".into(), raw: Value::from(c), printed: sony::wb_code_name(c).map(|x| x.to_string()), kind: Kind::Decoded }); }
+        put(out, f);
+    }
+    if so.model.is_some() || so.maker.is_some() {
+        // the MP4 / NRT XML of these cameras does not store the lens model or the Kelvin value: say so concretely
+        for id in ["lens", "wb_temp", "tint"] { if let Some(x) = out.iter_mut().find(|x| x.id == id) { if x.value.is_none() && x.note.is_none() { x.note = Some(if id == "lens" { "sony_no_lens" } else { "sony_no_kelvin" }.into()); } } }
+    }
     if let Some(t) = sony::ltc_text(so) { put(out, dec("timecode", "file", t, "LtcChange (frame 0)", Value::from(so.ltc.unwrap_or(0)), so)); }
 }
 

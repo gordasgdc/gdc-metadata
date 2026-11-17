@@ -22,6 +22,7 @@ pub struct Sony {
     pub fnumber: Option<f64>,
     pub exposure: Option<(u32, u32)>,
     pub iso: Option<u32>,
+    pub rt: Rtmd,
     /// "embedded" (inside the MP4) or "sidecar" (card-structure XML next to the clip)
     pub origin: String,
 }
@@ -99,9 +100,32 @@ pub fn ltc_text(s: &Sony) -> Option<String> {
 }
 
 /// First rtmd sample -> (FNumber, ExposureTime num/den, ISO). Pure function.
-pub fn parse_rtmd(d: &[u8]) -> (Option<f64>, Option<(u32, u32)>, Option<u32>) {
-    let (mut f, mut e, mut iso) = (None, None, None);
-    if d.len() < 4 { return (f, e, iso); }
+/// Values of the first rtmd sample (frame 0). Decoders follow RDD 18 as implemented by MediaInfo (lens items) and ExifTool (WhiteBalance code).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Rtmd {
+    pub fnumber: Option<f64>, pub exposure: Option<(u32, u32)>, pub iso: Option<u32>,
+    pub focus_m: Option<f64>, pub focal_eq_mm: Option<f64>, pub focal_mm: Option<f64>,
+    pub focus_ring: Option<f64>, pub zoom_ring: Option<f64>,
+    pub ae_mode: Option<&'static str>, pub af_area: Option<&'static str>, pub awb_mode: Option<&'static str>,
+    pub wb_code: Option<u8>, pub shutter_angle: Option<f64>, pub gain_db: Option<f64>,
+}
+/// RDD 18 16-bit lens float: 4-bit signed decimal exponent, 12-bit mantissa (value = mantissa * 10^exp).
+pub fn lens_float(v: u16) -> f64 {
+    let mut e = ((v >> 12) & 0x0f) as i32; if e >= 8 { e = -(((!e) & 7) + 1); }
+    (v & 0x0fff) as f64 * 10f64.powi(e)
+}
+fn ae_mode(ul: &[u8]) -> Option<&'static str> {
+    if ul.len() != 16 || ul[8..12] != [0x05, 0x10, 0x01, 0x01] { return None; }
+    match (ul[12], ul[13]) { (1, 1) => Some("Manual"), (1, 2) => Some("Full Auto"), (1, 3) => Some("Gain Priority Auto"), (1, 4) => Some("Iris Priority Auto"), (1, 5) => Some("Shutter Priority Auto"), _ => None }
+}
+pub fn wb_code_name(c: u8) -> Option<&'static str> {
+    // ExifTool Sony rtmd 0xe303 (6 = Custom, also used for Shade: ambiguous on its own)
+    match c { 1 => Some("Incandescent"), 2 => Some("Fluorescent"), 4 => Some("Daylight"), 5 => Some("Cloudy"), 6 => Some("Custom"), 255 => Some("Preset"), _ => None }
+}
+
+pub fn parse_rtmd(d: &[u8]) -> Rtmd {
+    let mut r = Rtmd::default();
+    if d.len() < 4 { return r; }
     let mut pos = u16::from_be_bytes([d[0], d[1]]) as usize;
     let end = d.len();
     while pos + 4 < end {
@@ -111,15 +135,27 @@ pub fn parse_rtmd(d: &[u8]) -> (Option<f64>, Option<(u32, u32)>, Option<u32>) {
         if tag == 0x060e { len = 0x10; } else { pos += 4; if tag == 0x8300 { continue; } }
         if pos + len > end { break; }
         let v = &d[pos..pos + len];
+        let u16v = || u16::from_be_bytes([v[0], v[1]]);
         match tag {
-            0x8000 if len == 2 => { let r = u16::from_be_bytes([v[0], v[1]]) as f64; f = Some(2f64.powf(8.0 - r / 8192.0)); }
-            0x8109 if len == 8 => { e = Some((u32::from_be_bytes([v[0], v[1], v[2], v[3]]), u32::from_be_bytes([v[4], v[5], v[6], v[7]]))); }
-            0x810b if len == 2 => { iso = Some(u16::from_be_bytes([v[0], v[1]]) as u32); }
+            0x8000 if len == 2 => { r.fnumber = Some(2f64.powf(8.0 - u16v() as f64 / 8192.0)); }
+            0x8001 if len == 2 => { r.focus_m = Some(lens_float(u16v())); }
+            0x8004 if len == 2 => { r.focal_eq_mm = Some(lens_float(u16v()) * 1000.0); }
+            0x8005 if len == 2 => { r.focal_mm = Some(lens_float(u16v()) * 1000.0); }
+            0x800a if len == 2 => { r.focus_ring = Some(u16v() as f64 * 100.0 / 65535.0); }
+            0x800b if len == 2 => { r.zoom_ring = Some(u16v() as f64 * 100.0 / 65535.0); }
+            0x8100 => { r.ae_mode = ae_mode(v); }
+            0x8101 if len == 1 => { r.af_area = match v[0] { 0 => Some("Manual"), 1 => Some("Center Sensitive Auto"), 2 => Some("Full Screen Sensing Auto"), 3 => Some("Multi Spot Sensing Auto"), 4 => Some("Single Spot Sensing Auto"), _ => None }; }
+            0x8108 if len == 4 => { r.shutter_angle = Some(u32::from_be_bytes([v[0], v[1], v[2], v[3]]) as f64 / 60.0); }
+            0x8109 if len == 8 => { r.exposure = Some((u32::from_be_bytes([v[0], v[1], v[2], v[3]]), u32::from_be_bytes([v[4], v[5], v[6], v[7]]))); }
+            0x810a if len == 2 => { r.gain_db = Some(u16v() as f64 / 100.0); }
+            0x810b if len == 2 => { r.iso = Some(u16v() as u32); }
+            0x810d if len == 1 => { r.awb_mode = match v[0] { 0 => Some("Preset"), 1 => Some("Automatic"), 2 => Some("Hold"), 3 => Some("One Push"), _ => None }; }
+            0xe303 if len == 1 => { r.wb_code = Some(v[0]); }
             _ => {}
         }
         pos += len;
     }
-    (f, e, iso)
+    r
 }
 
 fn be32(b: &[u8]) -> u32 { u32::from_be_bytes([b[0], b[1], b[2], b[3]]) }
@@ -216,7 +252,7 @@ pub fn read(path: &Path) -> Option<Sony> {
     }
     if out.is_none() { out = sidecar(path).and_then(|t| parse_nrt(&t, "sidecar")); }
     let mut s = out?;
-    if let Some(d) = rtmd { let (f, e, i) = parse_rtmd(&d); s.fnumber = f; s.exposure = e; s.iso = i; }
+    if let Some(d) = rtmd { let r = parse_rtmd(&d); s.fnumber = r.fnumber; s.exposure = r.exposure; s.iso = r.iso; s.rt = r; }
     Some(s)
 }
 
@@ -239,6 +275,14 @@ mod tests {
         assert_ne!(gamut_name(a.primaries.as_deref().unwrap()), gamut_name(b.primaries.as_deref().unwrap()));
         assert_eq!(gamma_implied_gamut("s-log3"), Some("S-Gamut3"));
     }
+    #[test] fn lens_float_decoding() {
+        // exponent nibble 0xD = -3, mantissa 40 -> 0.040 (x1000 = 40 mm); 0xD000|2066 would overflow mantissa so use e=-3 for 2.066 m: mantissa 2066, exp -3
+        assert!((lens_float(0xD000 | 40) * 1000.0 - 40.0).abs() < 1e-9);
+        assert!((lens_float(0xD000 | 421) * 1000.0 - 421.0).abs() < 1e-9);
+        assert!((lens_float(0xD000 | 2066) - 2.066).abs() < 1e-9);
+        assert_eq!(lens_float(0x0000 | 7), 7.0);      // exponent 0
+        assert!((lens_float(0xF000 | 5) - 0.5).abs() < 1e-12); // exponent 0xF = -1
+    }
     #[test] fn unknown_strings_not_guessed() { assert_eq!(curve_name("hlg3"), None); assert_eq!(gamut_name("x-gamut"), None); }
     #[test] fn timecode_matches_reference() {
         let s = parse_nrt(&xml("s-log3-cine", "s-gamut3-cine"), "embedded").unwrap();
@@ -252,7 +296,7 @@ mod tests {
         d.extend([0x81, 0x09, 0, 8]); d.extend(1u32.to_be_bytes()); d.extend(128u32.to_be_bytes());
         d.extend([0x81, 0x0b, 0, 2]); d.extend(800u16.to_be_bytes());
         d.extend([0, 0, 0, 0, 0, 0]);
-        let (f, e, i) = parse_rtmd(&d);
-        assert!((f.unwrap() - 2.8).abs() < 0.01); assert_eq!(e, Some((1, 128))); assert_eq!(i, Some(800));
+        let r = parse_rtmd(&d);
+        assert!((r.fnumber.unwrap() - 2.8).abs() < 0.01); assert_eq!(r.exposure, Some((1, 128))); assert_eq!(r.iso, Some(800));
     }
 }
