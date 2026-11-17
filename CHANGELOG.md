@@ -1,6 +1,8 @@
 # Changelog
 
 ## 0.3.0
+- New layout for batch work: a wide comparison table (clip with thumbnail, gamut / curve, camera, lens, white balance, exposure, full timecode), a compact variant in narrow windows, and an inspector with the frame, camera, lens, white balance and exposure up front. **Enlarge frame** opens a large still frame; closing it keeps the selection, the filter and the table position.
+- Multi-selection summary: how many clips are selected, how many confirmed, and what goes to export and to Resolve. Keyboard selection (Tab, Shift+arrows, ⌘A) keeps the focus on the table; button and gamut / curve cells are announced with meaningful names.
 - Batches: native multi-selection (click, Shift, ⌘, ⌘A); **Export N clips** and **Send N to Resolve** act on exactly the selection (also when a filter hides part of it); **Remove from list** and **Clear list** next to the table.
 - **Accept for export**: the detected gamut + curve pair is confirmed per clip (reversible); read, inferred and confirmed values are shown distinctly and exported with their provenance.
 - Sony XAVC S MP4: curve, gamut, camera, exposure and timecode read from the embedded Sony metadata (or the card-structure XML); S-Gamut3.Cine and S-Gamut3 are told apart.
