@@ -37,6 +37,17 @@ Cele două valori de sus din inspector spun ce intrare alegi în color managemen
 - Bara de jos spune câte clipuri au fost importate; dacă un fișier a fost respins, apasă „importate · respinse” pentru motivul fiecăruia.
 - Clipurile cu același nume din foldere diferite rămân separate.
 
+## Fereastră largă, fereastră îngustă, cadru mare
+
+La fereastră largă lista e un tabel: Clip (cu miniatură), Gamut / curbă, Cameră, Obiectiv, Balans de alb, Expunere, Timecode. La fereastră îngustă rămân Clip, Gamut / curbă și Timecode-ul complet. **Mărește cadrul** (sau dublu clic pe previzualizare) deschide un cadru static mare; **Esc** îl închide, iar selecția, clipul activ, filtrul și poziția în tabel rămân.
+
+## Exemplu: un lot Sony spre Resolve
+
+1. Selectează două clipuri (clic, ⌘-clic; sau Tab pe tabel și Shift+↓). Bara arată „2 selectate din 3”.
+2. **Trimite 2 în Resolve** → vezi pe fiecare rând câte câmpuri se scriu și câte se păstrează → **Aplică în Media Pool** (doar metadate informative).
+3. Separat: **Setează spațiul de intrare…** → confirmă pentru cele 2 clipuri (schimbă procesarea culorii).
+4. Salvează și redeschide proiectul în Resolve și compară.
+
 ## Versiune și actualizări
 
 - Versiunea instalată e în bara de jos și în **Despre GDC Metadata** (versiune și build).

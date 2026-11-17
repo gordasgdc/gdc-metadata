@@ -37,6 +37,17 @@ The two values at the top of the inspector tell you which input to choose in col
 - The bottom bar says how many clips were imported; if any file was refused, click “imported · rejected” to see the reason for each.
 - Same-name clips from different folders stay separate.
 
+## Wide window, narrow window, large frame
+
+In a wide window the list is a table: Clip (with thumbnail), Gamut / curve, Camera, Lens, White balance, Exposure, Timecode. In a narrow window Clip, Gamut / curve and the full Timecode stay. **Enlarge frame** (or double-click the preview) opens a large static frame; **Esc** closes it and the selection, active clip, filter and table position are kept.
+
+## Example: a Sony batch to Resolve
+
+1. Select two clips (click, ⌘-click; or Tab to the table and Shift+↓). The bar reads “2 selected of 3”.
+2. **Send 2 to Resolve** → see per row how many fields are written and kept → **Apply to Media Pool** (informative metadata only).
+3. Separately: **Set input colour space…** → confirm for the 2 clips (changes colour processing).
+4. Save and reopen the project in Resolve and compare.
+
 ## Version and updates
 
 - The installed version is in the bottom bar and in **About GDC Metadata** (version and build).

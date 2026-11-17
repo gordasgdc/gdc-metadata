@@ -37,6 +37,17 @@ Los dos valores superiores del inspector indican qué entrada elegir en la gesti
 - La barra inferior indica cuántos clips se importaron; si se rechazó algún archivo, pulsa «importados · rechazados» para ver el motivo de cada uno.
 - Los clips con el mismo nombre de carpetas distintas siguen separados.
 
+## Ventana ancha, ventana estrecha, fotograma grande
+
+En una ventana ancha la lista es una tabla: Clip (con miniatura), Gamut / curva, Cámara, Objetivo, Balance de blancos, Exposición, Timecode. En una ventana estrecha quedan Clip, Gamut / curva y el Timecode completo. **Ampliar fotograma** (o doble clic en la vista previa) abre un fotograma estático grande; **Esc** lo cierra y se conservan la selección, el clip activo, el filtro y la posición en la tabla.
+
+## Ejemplo: un lote Sony a Resolve
+
+1. Selecciona dos clips (clic, ⌘-clic; o Tab hasta la tabla y Mayús+↓). La barra dice «2 seleccionados de 3».
+2. **Enviar 2 a Resolve** → ves por fila cuántos campos se escriben y se conservan → **Aplicar al Media Pool** (solo metadatos informativos).
+3. Por separado: **Establecer espacio de entrada…** → confirma para los 2 clips (cambia el procesado del color).
+4. Guarda y reabre el proyecto en Resolve y compara.
+
 ## Versión y actualizaciones
 
 - La versión instalada está en la barra inferior y en **Acerca de GDC Metadata** (versión y build).
