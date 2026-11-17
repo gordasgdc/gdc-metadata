@@ -12,7 +12,7 @@ struct ResolveSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(L.t("resolve.send")).font(.title2.weight(.semibold)); Spacer()
+                Text(s.selection.count == 1 ? L.t("act.send.1") : L.f("act.send.n", s.selection.count)).font(.title2.weight(.semibold)); Spacer()
                 Button(L.t("resolve.refresh")) { Task { await s.loadResolvePlan() } }.disabled(s.resolveLoading)
             }
             if let e = s.resolveError {
@@ -24,9 +24,10 @@ struct ResolveSheet: View {
                     Text(L.f("resolve.matches", counts.0, counts.1, counts.2)).font(.callout.monospacedDigit())
                     if s.resolveLoading { ProgressView().controlSize(.small) }
                 }
+                Text(L.t("resolve.info.title")).font(.headline)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) { ForEach(s.resolveRows) { row in rowView(row) } }
-                }.frame(minHeight: 260)
+                }.frame(minHeight: 150, maxHeight: 300)
                 inputSection
                 Label(L.t("resolve.only_in_sidecar"), systemImage: "doc.text").font(.caption).foregroundStyle(.secondary)
             }
@@ -40,7 +41,7 @@ struct ResolveSheet: View {
                     .disabled(s.resolveError != nil || counts.0 == 0 || s.resolveLoading || s.lastApplied)
             }
         }
-        .padding(20).frame(minWidth: 640, minHeight: 460)
+        .padding(20).frame(minWidth: 700, idealWidth: 760, minHeight: 600, idealHeight: 680)
     }
 
     var inputWritable: Int { s.inputRows.filter { $0.fields.first?.action == "write" }.count }
@@ -87,7 +88,7 @@ struct ResolveSheet: View {
                 Text(name(row.path)).font(.body.weight(.medium))
                 Text(dir(row.path)).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.head)
                 Spacer(minLength: 8)
-                Text(row.match == "exact" ? L.f("resolve.summary", w, k, same) : row.match == "none" ? L.t("resolve.none") : L.t("resolve.ambiguous") + (row.folder.map { " · \($0)" } ?? ""))
+                Text(row.match == "exact" ? (s.lastApplied ? L.f("resolve.summary.done", w, k, same) : L.f("resolve.summary", w, k, same)) : row.match == "none" ? L.t("resolve.none") : L.t("resolve.ambiguous") + (row.folder.map { " · \($0)" } ?? ""))
                     .font(.caption).foregroundStyle(row.match == "exact" ? .secondary : Theme.warn).lineLimit(1)
             }.padding(.vertical, 6)
             if row.match == "exact" && !row.fields.isEmpty {

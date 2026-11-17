@@ -80,22 +80,45 @@ pub fn resolve_values(clip: &Clip) -> Vec<(String, String)> {
     put("Focal Point (mm)", get("focal_length").and_then(num_of));
     put("ISO", get("iso").and_then(num_of));
     put("White Point (Kelvin)", get("wb_temp").and_then(num_of));
-    if let Some(f) = get("curve") { if f.status == Status::Found && f.note.as_deref() != Some("viewing_metadata") { put("Gamma Notes", f.value.clone()); } }
-    if let Some(f) = get("gamut") { if f.status == Status::Found && f.note.as_deref() != Some("viewing_metadata") { put("Color Space Notes", f.value.clone()); } }
+    if let Some(f) = get("curve") { if (f.status == Status::Found || f.status == Status::Confirmed) && f.note.as_deref() != Some("viewing_metadata") { put("Gamma Notes", f.value.clone()); } }
+    if let Some(f) = get("gamut") { if (f.status == Status::Found || f.status == Status::Confirmed) && f.note.as_deref() != Some("viewing_metadata") { put("Color Space Notes", f.value.clone()); } }
     v
 }
 
-/// Resolve "Input Color Space" string for a clip, only when the pair was decoded from the file (Canon cndm) and both
-/// names are in Resolve's list (verified in Resolve 21.2: "Canon Cinema Gamut/Canon Log 2" and "…/Canon Log 3" accepted).
-/// Returns (resolve value, curve name). Never inferred from brand or model.
+/// Applies a user confirmation to a clip's curve/gamut fields. The value read from the file (if any) is kept as an
+/// alternate so nothing is lost; the field becomes `confirmed` with a `user` source. Media is never touched.
+pub fn apply_confirmation(clip: &mut Clip, curve: Option<&str>, gamut: Option<&str>) {
+    for (id, val) in [("curve", curve), ("gamut", gamut)] {
+        let Some(v) = val else { continue };
+        let src = SourceRef { source: "user".into(), group: String::new(), tag: id.into(), raw: json!(v), printed: None, kind: Kind::User };
+        if let Some(f) = clip.fields.iter_mut().find(|f| f.id == id) {
+            if let Some(p) = f.primary.take() { f.alternates.insert(0, p); }
+            f.value = Some(v.to_string()); f.status = Status::Confirmed; f.primary = Some(src); f.note = Some("user_confirmed".into());
+        }
+    }
+}
+
+/// Resolve "Input Color Space" names verified in Resolve 21.2 (SetClipProperty accepted them, Color Managed project).
+fn resolve_input_name(gamut: &str, curve: &str) -> Option<String> {
+    match (gamut, curve) {
+        ("Cinema Gamut", "Canon Log 2") | ("Cinema Gamut", "Canon Log 3") => Some(format!("Canon Cinema Gamut/{}", curve)),
+        ("S-Gamut3.Cine", "S-Log3") | ("S-Gamut3", "S-Log3") => Some(format!("{}/S-Log3", gamut)),
+        ("S-Gamut", "S-Log2") => Some("S-Gamut/S-Log2".into()),
+        ("V-Gamut", "V-Log") => Some("Panasonic V-Gamut/V-Log".into()),
+        _ => None,
+    }
+}
+
+/// Resolve "Input Color Space" string for a clip, only when BOTH values were decoded from the file by a GDC reader
+/// (Canon cndm, Sony NRT) or confirmed by the user, and the pair has a verified Resolve name. Never inferred from brand,
+/// model or file name. Returns (resolve value, curve name).
 pub fn resolve_input_space(clip: &Clip) -> Option<(String, String)> {
     let get = |id: &str| clip.fields.iter().find(|f| f.id == id);
     let (c, g) = (get("curve")?, get("gamut")?);
-    let decoded = |f: &crate::model::Field| f.status == Status::Found && f.primary.as_ref().map_or(false, |p| p.source == "gdc-cndm");
-    if !decoded(c) || !decoded(g) || g.value.as_deref() != Some("Cinema Gamut") { return None; }
-    let curve = c.value.clone()?;
-    if curve != "Canon Log 2" && curve != "Canon Log 3" { return None; }
-    Some((format!("Canon Cinema Gamut/{}", curve), curve))
+    let ok = |f: &Field| f.status == Status::Confirmed || (f.status == Status::Found && f.primary.as_ref().map_or(false, |p| p.source == "gdc-cndm" || p.source == "gdc-sony"));
+    if !ok(c) || !ok(g) { return None; }
+    let (curve, gamut) = (c.value.clone()?, g.value.clone()?);
+    resolve_input_name(&gamut, &curve).map(|v| (v, curve))
 }
 
 pub const RESOLVE_KEYS: &[&str] = &["Camera Manufacturer", "Camera Type", "Lens Type", "Focal Point (mm)", "ISO", "White Point (Kelvin)", "Gamma Notes", "Color Space Notes"];

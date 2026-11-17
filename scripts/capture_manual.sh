@@ -12,6 +12,7 @@ for L in ro en es; do
   run import_three_$L --lang $L --scan "$F/A001.mov|$F/A002.mov|$F/A003.mov|$F/notes.txt" --select 0 --size 1180x700
   run inspector_$L --demo --select 0 --lang $L --size 1180x700
   run search_$L --demo --select 0 --lang $L --query ColorTemperature --size 1180x700
+  run batch_$L --demo-batch --select 0,1,2,3,4,5 --accept --lang $L --size 1180x700
   run resolve_sheet_$L --demo --lang $L --resolve
 done
 python3 "$(dirname "$0")/crop_manual.py" "$(dirname "$C")"

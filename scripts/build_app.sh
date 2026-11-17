@@ -14,7 +14,7 @@ cp "$EV/builds/core/release/gdc-metadata-core" "$APP/Contents/Resources/"
 cp "$HERE/app/Resources/GDCMetadata.icns" "$APP/Contents/Resources/"
 cp "$HERE/LICENSE" "$HERE/NOTICE" "$HERE/THIRD_PARTY_NOTICES.md" "$APP/Contents/Resources/"
 cp "$HERE"/docs/manual/pdf/manual-*.pdf "$APP/Contents/Resources/"
-cp "$HERE/app/Resources/resolve_bridge.py" "$HERE/app/Resources/demo_clips.ndjson" "$HERE"/app/Resources/thumb_*.png "$APP/Contents/Resources/"
+cp "$HERE/app/Resources/resolve_bridge.py" "$HERE/app/Resources/demo_clips.ndjson" "$HERE/app/Resources/demo_batch.ndjson" "$HERE"/app/Resources/thumb_*.png "$APP/Contents/Resources/"
 cat > "$APP/Contents/Info.plist" <<P
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>

@@ -12,6 +12,8 @@ pub enum Kind {
     Computed,
     /// Decoded by a GDC reader from a binary stream.
     Decoded,
+    /// Chosen by the user in the app (never read from the file).
+    User,
     /// Reported by DaVinci Resolve (never stored in the file).
     Resolve,
     /// Value from an external sidecar file.
@@ -35,6 +37,8 @@ pub enum Status {
     Unavailable,
     SourcesDiffer,
     Computed,
+    /// Value accepted by the user (reversible, not read from the file).
+    Confirmed,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

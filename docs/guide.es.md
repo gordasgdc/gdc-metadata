@@ -46,3 +46,6 @@ Los dos valores superiores del inspector indican qué entrada elegir en la gesti
 ## Manual completo
 
 - Manual PDF completo: botón / menú **Ayuda**, o https://gordas.dev/gdc-metadata/GDC-Metadata-Manual-es.pdf
+
+
+**Lotes (0.3.0).** Selecciona con clic/Mayús/⌘/⌘A, pulsa **Aceptar para exportar** (cada clip conserva su par; reversible), luego **Exportar N clips** o **Enviar N a Resolve**, exactamente sobre la selección. **Quitar de la lista** (⌘⌫) y **Vaciar lista** (⇧⌘⌫) solo afectan a la lista. Lo que los lectores no encuentran aparece como **No detectado**, no como «falta». Sony: curva y gamut se leen de los metadatos incrustados; S-Gamut3.Cine ≠ S-Gamut3.

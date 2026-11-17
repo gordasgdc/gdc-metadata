@@ -4,7 +4,7 @@ import sys, pathlib
 from PIL import Image
 d = pathlib.Path(sys.argv[1]); raw = d / "raw"
 # name -> (x0, y0, x1, y1) as fractions of the raw capture
-CROPS = {"import_three": (0, 0, 1, 1), "inspector": (0.47, 0, 1, 0.80), "search": (0.47, 0, 1, 0.80), "resolve_sheet": (0, 0.105, 1, 0.89)}
+CROPS = {"import_three": (0, 0, 1, 1), "inspector": (0.47, 0, 1, 0.80), "search": (0.47, 0, 1, 0.80), "batch": (0, 0, 1, 1), "resolve_sheet": (0, 0.105, 1, 0.89)}
 for lang in ("ro", "en", "es"):
     for name, (a, b, c, e) in CROPS.items():
         im = Image.open(raw / f"{name}_{lang}.png"); w, h = im.size

@@ -6,7 +6,7 @@
 
 Read camera, lens, exposure, white balance, image profile and timecode from multi-camera folders, see where each value comes from and send it to the DaVinci Resolve Media Pool. Everything stays on your Mac; originals are never modified.
 
-**[Download for macOS](https://github.com/gordasgdc/gdc-metadata/releases/download/v0.2.0/GDCMetadata-0.2.0.dmg)** — Version 0.2.0 · free · signed and notarized DMG
+**[Download for macOS](https://github.com/gordasgdc/gdc-metadata/releases/download/v0.3.0/GDCMetadata-0.3.0.dmg)** — Version 0.3.0 · free · signed and notarized DMG
 
 [English](README.md) · [Română](README.ro.md) · [Español](README.es.md) · User guide: [EN](docs/guide.en.md) · [RO](docs/guide.ro.md) · [ES](docs/guide.es.md)
 

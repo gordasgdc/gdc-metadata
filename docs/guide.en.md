@@ -46,3 +46,6 @@ The two values at the top of the inspector tell you which input to choose in col
 ## Full manual
 
 - Complete PDF manual: Help button / menu **Help**, or https://gordas.dev/gdc-metadata/GDC-Metadata-Manual-en.pdf
+
+
+**Batches (0.3.0).** Select with click/Shift/⌘/⌘A, press **Accept for export** (each clip keeps its own pair; reversible), then **Export N clips** or **Send N to Resolve** — exactly on the selection. **Remove from list** (⌘⌫) and **Clear list** (⇧⌘⌫) only affect the list. Values the readers did not find show as **Not detected**, not as “missing”. Sony: curve and gamut are read from the embedded metadata; S-Gamut3.Cine ≠ S-Gamut3.

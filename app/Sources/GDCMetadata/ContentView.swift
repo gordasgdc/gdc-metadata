@@ -12,13 +12,17 @@ struct ContentView: View {
         Group {
             if s.clips.isEmpty && !s.scanning { dropZone } else {
                 HSplitView {
-                    clipList.frame(minWidth: 300, idealWidth: 380, maxWidth: 560)
-                    Group { if let c = s.selected { InspectorView(clip: c) } else { Text(L.t("empty.sel")).foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity) } }
+                    clipList.frame(minWidth: 440, idealWidth: 500, maxWidth: 680)
+                    Group {
+                        if let c = s.selected { InspectorView(clip: c) }
+                        else if s.selection.count > 1 { BatchView() }
+                        else { Text(L.t("empty.sel")).foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity) }
+                    }
                         .frame(minWidth: 420)
                 }
             }
         }
-        .frame(minWidth: 780, minHeight: 520)
+        .frame(minWidth: 920, minHeight: 560)
         .onDrop(of: [.fileURL], isTargeted: $targeted) { providers in
             guard !providers.isEmpty else { return false }
             // one gesture can carry many files; collect all of them (they arrive in any order), then import them as a single batch
@@ -58,12 +62,55 @@ struct ContentView: View {
                         Text(c.name).lineLimit(1).truncationMode(.middle)
                     }
                 }.width(min: 130, ideal: 170)
+                TableColumn(L.t("col.profile")) { c in PairCell(pair: s.pair(c), L: L) }.width(min: 170, ideal: 230)
                 TableColumn(L.t("col.camera")) { c in Text(c.value("camera_model") ?? L.t("st.unavailable")).foregroundStyle(c.value("camera_model") == nil ? .tertiary : .primary).lineLimit(1) }.width(min: 80, ideal: 110)
                 TableColumn(L.t("col.tc")) { c in Text(c.value("timecode") ?? "—").mono().foregroundStyle(c.value("timecode") == nil ? .tertiary : .primary) }.width(min: 80, ideal: 96)
             }
             .tableStyle(.inset(alternatesRowBackgrounds: false))
+            actionBar
             statusBar
         }
+    }
+
+    var n: Int { s.selection.count }
+    var hidden: Int { s.hiddenByFilter(s.query) }
+    func exportRun(share: Bool, chooseDir: Bool) { Task {
+        if let (ok, bad) = await s.exportSidecars(share: share, chooseDir: chooseDir) { s.opErrors = bad; exportMsg = L.f("export.done", ok) + (bad.isEmpty ? "" : "\n" + L.f("op.errors", bad.count) + ":\n" + bad.joined(separator: "\n")) }
+    } }
+    var actionBar: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                if n == 0 { Label(L.t("sel.none"), systemImage: "cursorarrow.click.2").font(.caption).foregroundStyle(.secondary) }
+                else { Text(L.f("sel.count", n, s.clips.count)).font(.caption.weight(.semibold)) }
+                if n > 0, hidden > 0 { Label(L.f("sel.hidden", hidden), systemImage: "line.3.horizontal.decrease.circle").font(.caption).foregroundStyle(Theme.warn).lineLimit(2) }
+                Spacer()
+                if s.busy { ProgressView().controlSize(.small); Text(L.t("op.running")).font(.caption).foregroundStyle(.secondary) }
+            }
+            HStack(spacing: 8) {
+                Button(L.t("act.accept")) { let sk = s.acceptDetected(s.selection); if sk > 0 { exportMsg = L.f("batch.skipped", sk) } }
+                    .disabled(n == 0).help(L.t("act.accept.help"))
+                Button(L.t("act.revoke")) { s.revoke(s.selection) }.disabled(!s.selection.contains { s.confirmedBase[$0] != nil })
+                Spacer()
+            }
+            HStack(spacing: 8) {
+                Button(L.t("act.remove")) { s.removeSelected() }.disabled(n == 0).help(L.t("act.remove.help"))
+                Button(L.t("clear.list")) { s.clearList() }.help(L.t("act.clear.help"))
+                Spacer()
+            }
+            HStack(spacing: 8) {
+                Menu {
+                    Button(L.t("export.sidecar")) { exportRun(share: false, chooseDir: false) }
+                    Button(L.t("export.choose")) { exportRun(share: false, chooseDir: true) }
+                    Button(L.t("export.share")) { exportRun(share: true, chooseDir: true) }
+                } label: { Label(n == 0 ? L.t("export.sidecar") : n == 1 ? L.t("act.export.1") : L.f("act.export.n", n), systemImage: "square.and.arrow.down") }
+                    .disabled(n == 0 || s.busy).fixedSize()
+                Button { s.showResolve = true; Task { await s.loadResolvePlan() } } label: { Label(n == 0 ? L.t("resolve.send") : n == 1 ? L.t("act.send.1") : L.f("act.send.n", n), systemImage: "paperplane.fill").font(.callout.weight(.semibold)) }
+                    .buttonStyle(.borderedProminent).tint(Theme.accent).disabled(n == 0 || s.busy)
+                Spacer()
+            }
+        }
+        .padding(.horizontal, Theme.pad).padding(.vertical, 8)
+        .background(Theme.surface).overlay(alignment: .top) { Divider() }
     }
 
     func importPopover(_ i: AppState.ImportInfo) -> some View {
@@ -91,8 +138,6 @@ struct ContentView: View {
                 .popover(isPresented: $s.showImportInfo, arrowEdge: .top) { importPopover(i) }
             }
             Spacer()
-            Button { s.showResolve = true; Task { await s.loadResolvePlan() } } label: { Label(L.t("resolve.send"), systemImage: "paperplane.fill").font(.caption.weight(.semibold)) }
-                .buttonStyle(.borderedProminent).tint(Theme.accent).controlSize(.small).disabled(s.clips.isEmpty)
             Text(AppVersion.label).font(.caption).foregroundStyle(.tertiary).help("\(L.t("about.title")): \(AppVersion.detail)")
             if s.demo { Text(L.t("demo.badge")).font(.caption).padding(.horizontal, 6).padding(.vertical, 2).background(Theme.accent.opacity(0.18), in: Capsule()) }
         }
@@ -103,12 +148,6 @@ struct ContentView: View {
     @ToolbarContentBuilder var toolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             Button { s.chooseFolder() } label: { Label(L.t("drop.choose"), systemImage: "folder") }
-            Menu {
-                Button(L.t("export.sidecar")) { Task { if let n = await s.exportSidecars(share: false, chooseDir: false) { exportMsg = L.f("export.done", Int(n) ?? 0) } } }
-                Button(L.t("export.choose")) { Task { if let n = await s.exportSidecars(share: false, chooseDir: true) { exportMsg = L.f("export.done", Int(n) ?? 0) } } }
-                Button(L.t("export.share")) { Task { if let n = await s.exportSidecars(share: true, chooseDir: true) { exportMsg = L.f("export.done", Int(n) ?? 0) } } }
-            } label: { Label(L.t("export.sidecar"), systemImage: "square.and.arrow.down") }.disabled(s.clips.isEmpty)
-            Button { s.showResolve = true; Task { await s.loadResolvePlan() } } label: { HStack(spacing: 4) { Image(systemName: "paperplane"); Text(L.t("resolve.send")) } }.disabled(s.clips.isEmpty).help(L.t("resolve.send"))
             Button { L.openGuide() } label: { Label(L.t("help.guide"), systemImage: "questionmark.circle") }.help(L.t("help.guide"))
             Menu {
                 ForEach(Lang.allCases) { l in Button { L.langRaw = l.rawValue } label: { if L.langRaw == l.rawValue { Label(l.name, systemImage: "checkmark") } else { Text(l.name) } } }
@@ -117,5 +156,56 @@ struct ContentView: View {
         ToolbarItem(placement: .automatic) {
             TextField(L.t("search"), text: $s.query).textFieldStyle(.roundedBorder).frame(width: 220).focused($searchFocus)
         }
+    }
+}
+
+
+struct PairCell: View {
+    let pair: AppState.Pair
+    // passed explicitly: Table cells can be re-evaluated outside the environment (crashed with @EnvironmentObject)
+    @ObservedObject var L: Loc
+    var color: Color { switch pair.state { case .confirmed: return Theme.ok; case .read: return Theme.accent; case .differ, .partial: return Theme.warn; default: return Theme.muted } }
+    var icon: String { switch pair.state { case .confirmed: return "checkmark.seal.fill"; case .read: return "eye"; case .inferred: return "wand.and.stars"; case .partial: return "exclamationmark.circle"; case .differ: return "exclamationmark.triangle.fill"; case .none: return "minus.circle" } }
+    var key: String { switch pair.state { case .confirmed: return "pair.confirmed"; case .read: return "pair.read"; case .inferred: return "pair.inferred"; case .partial: return "pair.partial"; case .differ: return "pair.differ"; case .none: return "pair.none" } }
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon).foregroundStyle(color).frame(width: 16)
+            if pair.state == .none { Text(L.t("pair.none")).foregroundStyle(.tertiary) }
+            else { Text([pair.gamut, pair.curve].map { $0 ?? "—" }.joined(separator: " / ")).lineLimit(1).truncationMode(.tail) }
+        }.help(L.t(key))
+    }
+}
+
+/// Inspector for a multi-selection: each clip keeps its own pair; incomplete or contradictory ones are flagged.
+struct BatchView: View {
+    @EnvironmentObject var s: AppState
+    @EnvironmentObject var L: Loc
+    @State private var manual = ""
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(L.f("batch.title", s.selection.count)).font(.title2.weight(.semibold))
+            Text(L.t("batch.help")).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Button(L.t("act.accept")) { let sk = s.acceptDetected(s.selection); s.opMessage = sk > 0 ? L.f("batch.skipped", sk) : nil }.buttonStyle(.borderedProminent).tint(Theme.accent)
+                Menu(L.t("confirm.pick")) {
+                    ForEach(AppState.knownPairs, id: \.curve) { p in Button("\(p.gamut) / \(p.curve)") { s.acceptManual(s.selection, curve: p.curve, gamut: p.gamut) } }
+                }.fixedSize()
+                Button(L.t("act.revoke")) { s.revoke(s.selection) }.disabled(!s.selection.contains { s.confirmedBase[$0] != nil })
+            }
+            if let m = s.opMessage { Label(m, systemImage: "info.circle").font(.caption).foregroundStyle(Theme.warn) }
+            List(s.selectedClips) { c in
+                let p = s.pair(c)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(c.name).lineLimit(1).truncationMode(.middle)
+                        Text(c.dir).font(.caption2).foregroundStyle(.tertiary).lineLimit(1).truncationMode(.head)
+                    }.frame(minWidth: 140, alignment: .leading)
+                    Spacer(minLength: 6)
+                    PairCell(pair: p, L: L)
+                    Text(L.t(p.state == .confirmed ? "pair.confirmed" : p.state == .read ? "pair.read" : p.state == .inferred ? "pair.inferred" : p.state == .partial ? "pair.partial" : p.state == .differ ? "pair.differ" : "pair.none")).font(.caption2).foregroundStyle(.secondary).frame(width: 110, alignment: .trailing)
+                }
+            }.listStyle(.inset)
+        }.padding(Theme.pad + 4).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .onChange(of: s.selection) { _, _ in s.opMessage = nil }
     }
 }

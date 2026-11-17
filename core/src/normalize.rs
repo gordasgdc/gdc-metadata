@@ -2,6 +2,7 @@
 use crate::model::*;
 use crate::tmcd::Timecode;
 use crate::cndm::{self, Cndm};
+use crate::sony::{self, Sony};
 use serde_json::Value;
 
 pub struct Idx<'a> { pub tags: &'a [RawTag] }
@@ -124,7 +125,7 @@ fn declared(id: &str, section: &str, value: String, t: &RawTag, note: Option<&st
 }
 
 /// Image profile / curve / gamut. Only values the file states; pair rules are marked Computed.
-fn profile_fields(ix: &Idx, cn: Option<&Cndm>) -> Vec<Field> {
+fn profile_fields(ix: &Idx, cn: Option<&Cndm>, so: Option<&Sony>) -> Vec<Field> {
     let mut profile: Option<Field> = None;
     let mut curve: Option<Field> = None;
     let mut gamut: Option<Field> = None;
@@ -177,6 +178,11 @@ fn profile_fields(ix: &Idx, cn: Option<&Cndm>) -> Vec<Field> {
         curve = cndm_field("curve", c.curve_code, cndm::curve_name, curve);
         gamut = cndm_field("gamut", c.gamut_code, cndm::gamut_name, gamut);
     }
+    if let Some(so) = so {
+        curve = sony_field("curve", so.gamma.as_deref(), sony::curve_name, "CaptureGammaEquation", so, None, curve);
+        let implied = so.gamma.as_deref().and_then(sony::gamma_implied_gamut);
+        gamut = sony_field("gamut", so.primaries.as_deref(), sony::gamut_name, "CaptureColorPrimaries", so, implied, gamut);
+    }
     curve = curve.map(demote_maker_hint);
     gamut = gamut.map(demote_maker_hint);
     let mut ul_note = false;
@@ -219,6 +225,23 @@ fn cndm_field(id: &str, code: Option<u8>, name: fn(u8) -> Option<&'static str>, 
     }
 }
 
+/// Sony NRT XML item (embedded in the MP4 or card sidecar). `implied` = the gamut the gamma string itself implies, to flag contradictions.
+fn sony_field(id: &str, raw: Option<&str>, name: fn(&str) -> Option<&'static str>, tag: &str, so: &Sony, implied: Option<&str>, prev: Option<Field>) -> Option<Field> {
+    let raw = match raw { Some(r) => r, None => return prev };
+    let sr = SourceRef { source: "gdc-sony".into(), group: if so.origin == "sidecar" { "Sony NRT sidecar".into() } else { "Sony NRT".into() }, tag: tag.into(), raw: Value::from(raw), printed: Some(raw.to_string()), kind: Kind::Decoded };
+    match name(raw) {
+        Some(n) => {
+            let mut f = Field { id: id.into(), section: "color".into(), value: Some(n.into()), status: Status::Found, primary: Some(sr), alternates: vec![], note: Some("sony_nrt".into()) };
+            if let Some(imp) = implied { if id == "gamut" && imp != n {
+                f.status = Status::SourcesDiffer; f.note = Some("differs".into());
+                f.alternates.push(SourceRef { source: "gdc-sony".into(), group: "Sony NRT".into(), tag: "CaptureGammaEquation (implied gamut)".into(), raw: Value::from(imp), printed: Some(imp.to_string()), kind: Kind::Decoded });
+            } }
+            Some(f)
+        }
+        None => Some(Field { id: id.into(), section: "color".into(), value: None, status: Status::Unavailable, primary: None, alternates: vec![sr], note: Some("sony_unmapped".into()) }),
+    }
+}
+
 /// Canon maker-note CanonLogVersion / ColorSpace2 mirror the camera SETTING and are not proof of what was recorded:
 /// on EOS R5 clips with Picture Style Neutral they say Canon Log 3 / Cinema Gamut while DaVinci Resolve (and the picture itself)
 /// treat the clip as Rec.709 gamma 2.4. They are kept as a hint, never as the detected value.
@@ -226,6 +249,22 @@ fn demote_maker_hint(f: Field) -> Field {
     let weak = f.primary.as_ref().map_or(false, |p| p.source == "exiftool" && p.group == "Canon" && (p.tag == "CanonLogVersion" || p.tag == "ColorSpace2"));
     if !weak { return f; }
     Field { id: f.id, section: f.section, value: None, status: Status::Unavailable, primary: None, alternates: f.alternates.into_iter().chain(f.primary).collect(), note: Some("maker_hint".into()) }
+}
+
+fn dec(id: &str, section: &str, value: String, tag: &str, raw: Value, so: &Sony) -> Field {
+    Field { id: id.into(), section: section.into(), value: Some(value.clone()), status: Status::Found,
+        primary: Some(SourceRef { source: "gdc-sony".into(), group: if so.origin == "sidecar" { "Sony NRT sidecar".into() } else { "Sony NRT".into() }, tag: tag.into(), raw, printed: Some(value), kind: Kind::Decoded }),
+        alternates: vec![], note: None }
+}
+/// Camera, exposure and timecode from Sony NRT XML / rtmd, only where no other reader found the field.
+fn fill_from_sony(out: &mut Vec<Field>, so: &Sony) {
+    let put = |out: &mut Vec<Field>, f: Field| { if let Some(x) = out.iter_mut().find(|x| x.id == f.id) { if x.value.is_none() { *x = f; } } };
+    if let Some(m) = &so.maker { put(out, dec("make", "camera", m.clone(), "Device manufacturer", Value::from(m.as_str()), so)); }
+    if let Some(m) = &so.model { put(out, dec("camera_model", "camera", m.clone(), "Device modelName", Value::from(m.as_str()), so)); }
+    if let Some(f) = so.fnumber { put(out, dec("aperture", "exposure", format!("f/{}", trim_num(f, 1)), "rtmd 0x8000", Value::from(f), so)); }
+    if let Some((n, d)) = so.exposure { if n > 0 && d > 0 { put(out, dec("shutter", "exposure", fmt_shutter(n as f64 / d as f64), "rtmd 0x8109", Value::from(format!("{}/{}", n, d)), so)); } }
+    if let Some(i) = so.iso { if i > 0 { put(out, dec("iso", "exposure", format!("ISO {}", i), "rtmd 0x810b", Value::from(i), so)); } }
+    if let Some(t) = sony::ltc_text(so) { put(out, dec("timecode", "file", t, "LtcChange (frame 0)", Value::from(so.ltc.unwrap_or(0)), so)); }
 }
 
 fn container_field(ix: &Idx, id: &str, name: &str) -> Field {
@@ -242,7 +281,7 @@ fn container_field(ix: &Idx, id: &str, name: &str) -> Field {
     }
 }
 
-pub fn build_fields(tags: &[RawTag], tc: Option<&Timecode>, cn: Option<&Cndm>, size: u64, ext: &str) -> Vec<Field> {
+pub fn build_fields(tags: &[RawTag], tc: Option<&Timecode>, cn: Option<&Cndm>, so: Option<&Sony>, size: u64, ext: &str) -> Vec<Field> {
     let ix = Idx { tags };
     let mut out = vec![];
     out.push(field(&ix, "make", "camera", &[d("IFD0:Make"), d("UserData:Make"), d("Keys:CameraManufacturer"), d("Red:Make")], fmt_text, same_text));
@@ -255,7 +294,7 @@ pub fn build_fields(tags: &[RawTag], tc: Option<&Timecode>, cn: Option<&Cndm>, s
     out.push(field(&ix, "wb_mode", "color", &[d("Canon:WhiteBalance"), d("Panasonic:WhiteBalance"), d("ExifIFD:WhiteBalance")], fmt_wbmode, same_wb));
     out.push(field(&ix, "wb_temp", "color", &[d("Canon:ColorTemperature"), d("Panasonic:ColorTempKelvin"), d("Nikon:WhiteBalance"), d("Red:ColorTemperature"), d("Keys:ColorTemperature")], fmt_kelvin, same_num));
     out.push(unavailable("tint", "color", Some("no_source_tag")));
-    out.extend(profile_fields(&ix, cn));
+    out.extend(profile_fields(&ix, cn, so));
     out.push(container_field(&ix, "container_primaries", "ColorPrimaries"));
     out.push(container_field(&ix, "container_transfer", "TransferCharacteristics"));
     out.push(container_field(&ix, "container_matrix", "MatrixCoefficients"));
@@ -288,6 +327,7 @@ pub fn build_fields(tags: &[RawTag], tc: Option<&Timecode>, cn: Option<&Cndm>, s
         out.push(Field { id: "audio".into(), section: "file".into(), value: Some(v), status: Status::Found, primary: Some(sref(t0, Kind::Container)), alternates: vec![], note: None });
     } else { out.push(unavailable("audio", "file", None)); }
     out.push(field(&ix, "date_recorded", "file", &[d("ExifIFD:DateTimeOriginal"), c("QuickTime:CreateDate"), c("Track1:TrackCreateDate")], fmt_text, same_any));
+    if let Some(so) = so { fill_from_sony(&mut out, so); }
     out.push(Field { id: "file_size".into(), section: "file".into(), value: Some(format!("{} {}", trim_num(size as f64 / 1_048_576.0, 1), "MB")), status: Status::Computed, primary: None, alternates: vec![], note: Some(ext.to_lowercase()) });
     out
 }

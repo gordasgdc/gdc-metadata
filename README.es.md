@@ -6,7 +6,7 @@
 
 Lee cámara, objetivo, exposición, balance de blancos, perfil de imagen y timecode de carpetas multicámara, muestra el origen de cada valor y los envía al Media Pool de DaVinci Resolve. Todo queda en tu Mac; los originales no se modifican.
 
-**[Descargar para macOS](https://github.com/gordasgdc/gdc-metadata/releases/download/v0.2.0/GDCMetadata-0.2.0.dmg)** — Versión 0.2.0 · gratis · DMG firmado y notarizado
+**[Descargar para macOS](https://github.com/gordasgdc/gdc-metadata/releases/download/v0.3.0/GDCMetadata-0.3.0.dmg)** — Versión 0.3.0 · gratis · DMG firmado y notarizado
 
 [English](README.md) · [Română](README.ro.md) · [Español](README.es.md) · Guía de uso: [EN](docs/guide.en.md) · [RO](docs/guide.ro.md) · [ES](docs/guide.es.md)
 

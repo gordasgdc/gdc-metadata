@@ -113,6 +113,7 @@ struct InspectorView: View {
             summaryRow("sum.wb", wbText, fieldID: "wb_temp")
             summaryRow("sum.exposure", [clip.value("aperture"), clip.value("shutter"), clip.value("iso")].compactMap { $0 }.joined(separator: " · "))
             summaryRow("sum.profile", clip.value("picture_profile"), fieldID: "picture_profile")
+            Text(L.t("profile.preset.note")).font(.caption2).foregroundStyle(.tertiary).padding(.top, 2).fixedSize(horizontal: false, vertical: true)
         }
     }
     /// The two values that decide the input in colour management, each with its own provenance and independent of the other.
@@ -125,14 +126,28 @@ struct InspectorView: View {
                     inputSource(f)
                 }
             }
+            confirmControls
             Text(L.t("input.hint")).font(.caption2).foregroundStyle(.tertiary).padding(.top, 2).fixedSize(horizontal: false, vertical: true)
         }
         .padding(10).frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
         .padding(.bottom, 8)
     }
+    /// Read / inferred / confirmed stay distinct: this line says which one the pair currently is, and lets the user change it (reversibly).
+    var confirmControls: some View {
+        let p = s.pair(clip)
+        return HStack(spacing: 8) {
+            PairCell(pair: p, L: L).font(.caption.weight(.semibold))
+            Spacer(minLength: 4)
+            if p.state == .confirmed { Button(L.t("act.revoke")) { s.revoke([clip.id]) } }
+            else { Button(L.t("act.accept")) { s.acceptDetected([clip.id]) }.disabled(!p.complete || p.state == .differ).help(L.t("act.accept.help")) }
+            Menu(L.t("confirm.pick")) { ForEach(AppState.knownPairs, id: \.curve) { k in Button("\(k.gamut) / \(k.curve)") { s.acceptManual([clip.id], curve: k.curve, gamut: k.gamut) } } }.fixedSize()
+        }.padding(.top, 6)
+    }
     @ViewBuilder func inputSource(_ f: Field) -> some View {
-        if f.status == "sources_differ", let p = f.primary {
+        if f.status == "confirmed" {
+            Text(L.t("note.user_confirmed")).font(.caption).foregroundStyle(Theme.ok).fixedSize(horizontal: false, vertical: true).padding(.leading, Theme.labelWidth + 6)
+        } else if f.status == "sources_differ", let p = f.primary {
             VStack(alignment: .leading, spacing: 1) {
                 Text("⚠ \(L.t("note.differs"))").font(.caption).foregroundStyle(Theme.warn)
                 Text("\(p.label): \(f.value ?? "")").font(.caption.monospaced())
@@ -333,6 +348,7 @@ struct FieldRow: View {
         case "unavailable": EmptyView()
         case "sources_differ", "resolve_differs": chip(L.t("st.differ"), Theme.warn)
         case "computed": chip(L.t("st.computed"), Theme.muted)
+        case "confirmed": chip(L.t("st.confirmed"), Theme.ok)
         default:
             if field.primary?.kind == "decoded" { chip(L.t("st.decoded"), Theme.accent) }
             else if field.primary?.kind == "container" { chip(L.t("st.container"), Theme.muted) }
@@ -348,7 +364,7 @@ struct FieldRow: View {
             if let p = field.primary { refView(p, primary: true) } else if let n = field.note { Text(L.t("note." + n)).font(.callout).foregroundStyle(.secondary) } else { Text(L.t("note.no_source_tag")).font(.callout).foregroundStyle(.secondary) }
             if let r = resolveValue { Divider(); VStack(alignment: .leading) { Text(L.t("diff.resolve")).font(.caption).foregroundStyle(.secondary); Text(r).font(.body.monospacedDigit()).foregroundStyle(Theme.accent) } }
             if !field.alternates.isEmpty { Divider(); Text(L.t("detail.alt")).font(.caption).foregroundStyle(.secondary); ForEach(field.alternates, id: \.self) { refView($0, primary: false) } }
-            if let n = field.note, ["differs", "close_values", "pair_rule", "container_label", "viewing_metadata", "ul_unmapped", "cndm_derived", "cndm_unmapped", "maker_hint"].contains(n) { Divider(); Text(L.t("note." + n)).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+            if let n = field.note, ["differs", "close_values", "pair_rule", "container_label", "viewing_metadata", "ul_unmapped", "cndm_derived", "cndm_unmapped", "maker_hint", "user_confirmed", "sony_nrt", "sony_unmapped"].contains(n) { Divider(); Text(L.t("note." + n)).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
         }
     }
     func refView(_ r: SourceRef, primary: Bool) -> some View {

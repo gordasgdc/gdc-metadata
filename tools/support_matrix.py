@@ -15,10 +15,10 @@ for line in p.stdout:
     if key not in rows or len(ok) > rows[key][0]: rows[key] = (len(ok), c, f, ok)
 def src(x):
     p = x["primary"]
-    return "" if not p else {"gdc-cndm": "cndm", "exiftool": "tag", "gdc-rule": "pair-rule"}.get(p["source"], p["source"])
+    return "" if not p else {"gdc-cndm": "cndm", "gdc-sony": "sony-nrt", "exiftool": "tag", "gdc-rule": "pair-rule"}.get(p["source"], p["source"])
 with open(out, "w") as o:
     o.write("# Matriz de suport (probe reale) — generată de tools/support_matrix.py\n\n")
-    o.write("Curbă/gamut: `cndm` = decodat din pista Canon (empiric, nedocumentat de Canon, validat față de Resolve); `tag` = etichetă declarată; `pair-rule` = calculat dintr-o curbă declarată. Combinațiile care nu apar aici NU au fost testate. Canon `maker_hint` (CanonLogVersion/ColorSpace2) = indiciu neatribuit.\n\n")
+    o.write("Curbă/gamut: `cndm` = decodat din pista Canon (empiric, nedocumentat de Canon, validat față de Resolve); `sony-nrt` = metadate Sony NRT încorporate (XML); `tag` = etichetă declarată; `user` = confirmat de utilizator (nu apare în matrice); `pair-rule` = calculat dintr-o curbă declarată. Combinațiile care nu apar aici NU au fost testate. Canon `maker_hint` (CanonLogVersion/ColorSpace2) = indiciu neatribuit.\n\n")
     o.write("| Model/format | Câmpuri confirmate | Indisponibile | Curbă / gamut (sursă) | Probă |\n|---|---|---|---|---|\n")
     for k in sorted(rows):
         n, c, f, ok = rows[k]
@@ -28,6 +28,6 @@ with open(out, "w") as o:
         for i in ("curve","gamut"):
             if f[i]["value"]: cg.append(f"{i}={f[i]['value']} ({src(f[i])})")
             elif f[i]["note"] == "maker_hint": cg.append(f"{i}=Indisponibil (indiciu maker neconfirmat)")
-            else: cg.append(f"{i}=Indisponibil")
+            else: cg.append(f"{i}=Nedetectat")
         o.write(f"| {k[0]}|{k[1]}|{k[2]} ({k[3]}) | {conf} | {un} | {'; '.join(cg)} | {c['name']} |\n")
 print(len(rows), "rows ->", out)

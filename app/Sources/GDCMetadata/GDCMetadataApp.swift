@@ -36,7 +36,10 @@ struct GDCMetadataApp: App {
                 Button(loc.t("upd.check")) { updater.checkManually() }
                 if let a = updater.available { Button("\(loc.t("upd.install")) — v\(a.version)") { updater.installNow() } }
             }
-            CommandGroup(after: .newItem) { Button(loc.t("clear.list")) { state.clearList() }.keyboardShortcut(.delete, modifiers: .command).disabled(state.clips.isEmpty) }
+            CommandGroup(after: .newItem) {
+                Button(loc.t("act.remove")) { state.removeSelected() }.keyboardShortcut(.delete, modifiers: .command).disabled(state.selection.isEmpty)
+                Button(loc.t("clear.list")) { state.clearList() }.keyboardShortcut(.delete, modifiers: [.command, .shift]).disabled(state.clips.isEmpty)
+            }
             CommandGroup(replacing: .help) { Button(loc.t("help.guide")) { loc.openGuide() }.keyboardShortcut("?") }
         }
     }
@@ -46,7 +49,9 @@ struct GDCMetadataApp: App {
         if let o = arg("--open") { state.openIDs = Set(o.split(separator: ",").map(String.init)) }
         if let p = arg("--scan") { await state.scan(p.split(separator: "|").map(String.init)) }
         else if args.contains("--demo") { state.loadDemo() }
-        if let n = arg("--select"), let i = Int(n), i < state.clips.count { state.selection = state.clips[i].id }
+        else if args.contains("--demo-batch") { state.loadDemo(batch: true) }
+        if let n = arg("--select") { state.selection = Set(n.split(separator: ",").compactMap { Int($0) }.filter { $0 < state.clips.count }.map { state.clips[$0].id }) }
+        if args.contains("--accept") { state.acceptDetected(state.selection) }
         if args.contains("--expand") { state.expandAll = true }
         if let q = arg("--query") { state.query = q }
         if args.contains("--resolve") { state.showResolve = true; if !state.demo { await state.loadResolvePlan(); if args.contains("--apply") { await state.applyResolve(); await state.loadResolvePlan() } } }

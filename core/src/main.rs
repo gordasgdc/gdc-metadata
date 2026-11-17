@@ -11,8 +11,11 @@ fn main() {
     // positional paths (any number) after the command; flags with a value are skipped
     let mut roots: Vec<PathBuf> = vec![];
     let mut i = 1;
-    while i < a.len() { if a[i] == "--out" || a[i] == "--out-dir" { i += 2; continue; } if !a[i].starts_with("--") { roots.push(PathBuf::from(&a[i])); } i += 1; }
+    while i < a.len() { if a[i] == "--out" || a[i] == "--out-dir" || a[i] == "--confirm" { i += 2; continue; } if !a[i].starts_with("--") { roots.push(PathBuf::from(&a[i])); } i += 1; }
     let root = roots.first().cloned();
+    // --confirm <file.json>: {"<path>": {"curve": "...", "gamut": "..."}} user confirmations, applied on top of what was read
+    let confirms: serde_json::Value = arg(&a, "--confirm").and_then(|p| std::fs::read_to_string(p).ok()).and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(json!({}));
+    let load = |roots: &[PathBuf]| { let mut cs = scan::scan_many(roots, |_| {}); for c in cs.iter_mut() { if let Some(v) = confirms.get(&c.path) { export::apply_confirmation(c, v.get("curve").and_then(|x| x.as_str()), v.get("gamut").and_then(|x| x.as_str())); } } cs };
     let ver = exiftool::locate().and_then(|b| exiftool::version(&b)).unwrap_or_else(|| "unavailable".into());
     match (cmd, root) {
         ("version", _) => println!("{}", json!({"core": env!("CARGO_PKG_VERSION"), "exiftool": ver})),
@@ -33,7 +36,7 @@ fn main() {
         ("export", Some(_)) => {
             let out_dir = arg(&a, "--out-dir").map(PathBuf::from);
             let share = a.iter().any(|x| x == "--share");
-            let clips = scan::scan_many(&roots, |_| {});
+            let clips = load(&roots);
             // with --out-dir, keep each clip's folder structure below the nearest common ancestor so equal names from different folders stay distinct
             let common = export::common_ancestor(&clips);
             for c in &clips {
@@ -42,14 +45,14 @@ fn main() {
             }
         }
         ("resolve-csv", Some(_)) => {
-            let clips = scan::scan_many(&roots, |_| {});
+            let clips = load(&roots);
             let bytes = export::resolve_csv(&clips);
             let out = arg(&a, "--out").expect("--out required");
             std::fs::write(Path::new(&out), bytes).expect("write csv");
             println!("{}", json!({"rows": clips.len(), "out": out}));
         }
         ("resolve-plan", Some(_)) => {
-            let clips = scan::scan_many(&roots, |_| {});
+            let clips = load(&roots);
             let plan: Vec<_> = clips.iter().map(|c| json!({"path": c.path, "name": c.name, "dir": c.dir, "values": export::resolve_values(c), "input": export::resolve_input_space(c).map(|(v, k)| json!({"value": v, "curve": k}))})).collect();
             println!("{}", serde_json::to_string(&plan).unwrap());
         }

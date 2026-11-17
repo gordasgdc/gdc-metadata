@@ -46,3 +46,6 @@ Cele două valori de sus din inspector spun ce intrare alegi în color managemen
 ## Manual complet
 
 - Manual PDF complet: butonul / meniul **Ajutor**, sau https://gordas.dev/gdc-metadata/GDC-Metadata-Manual-ro.pdf
+
+
+**Lot de clipuri (0.3.0).** Selectează cu clic/Shift/⌘/⌘A, apasă **Acceptă pentru export** (fiecare clip își păstrează perechea; se poate anula), apoi **Exportă N clipuri** sau **Trimite N în Resolve** — exact pe selecție. **Scoate din listă** (⌘⌫) și **Golește lista** (⇧⌘⌫) afectează doar lista. Valorile necitite apar ca **Nedetectat**, nu ca „lipsă”. Sony: curba și gamutul se citesc din metadatele încorporate; S-Gamut3.Cine ≠ S-Gamut3.

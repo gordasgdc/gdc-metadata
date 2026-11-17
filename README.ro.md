@@ -6,7 +6,7 @@
 
 Citește camera, obiectivul, expunerea, balansul de alb, profilul de imagine și timecode-ul din foldere multi-cameră, arată de unde vine fiecare valoare și le trimite în Media Pool din DaVinci Resolve. Totul rămâne pe Mac; originalele nu sunt modificate.
 
-**[Descarcă pentru macOS](https://github.com/gordasgdc/gdc-metadata/releases/download/v0.2.0/GDCMetadata-0.2.0.dmg)** — Versiunea 0.2.0 · gratuit · DMG semnat și notarizat
+**[Descarcă pentru macOS](https://github.com/gordasgdc/gdc-metadata/releases/download/v0.3.0/GDCMetadata-0.3.0.dmg)** — Versiunea 0.3.0 · gratuit · DMG semnat și notarizat
 
 [English](README.md) · [Română](README.ro.md) · [Español](README.es.md) · Ghid de utilizare: [EN](docs/guide.en.md) · [RO](docs/guide.ro.md) · [ES](docs/guide.es.md)
 
