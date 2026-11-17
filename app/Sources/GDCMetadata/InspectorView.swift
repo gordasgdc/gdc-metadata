@@ -100,8 +100,8 @@ struct InspectorView: View {
                 .frame(maxWidth: .infinity).aspectRatio(16.0 / 9.0, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 6)).overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.hairline))
                 .onTapGesture(count: 2) { s.showPreview = true }
-                Button { s.showPreview = true } label: { Image(systemName: "arrow.up.left.and.arrow.down.right").padding(6).background(.black.opacity(0.55), in: Circle()) }
-                    .buttonStyle(.plain).foregroundStyle(.white).padding(6).help(L.t("preview.enlarge")).accessibilityLabel(L.t("preview.enlarge"))
+                Button { s.showPreview = true } label: { Label(L.t("preview.enlarge"), systemImage: "arrow.up.left.and.arrow.down.right").labelStyle(.iconOnly).padding(6).background(.black.opacity(0.55), in: Circle()) }
+                    .buttonStyle(.plain).foregroundStyle(.white).padding(6).help(L.t("preview.enlarge"))
             }
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline) { Text(clip.name).font(.title3.weight(.semibold)).lineLimit(2).textSelection(.enabled); Spacer(); if let t = clip.value("timecode") { Text(t).mono().foregroundStyle(.secondary).fixedSize() } }

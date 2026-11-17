@@ -54,6 +54,7 @@ struct ContentView: View {
         .background(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.hairline, style: StrokeStyle(lineWidth: 1.5, dash: [6])).padding(24))
     }
 
+    @FocusState private var listFocus: Bool
     var clipList: some View {
         VStack(spacing: 0) {
             GeometryReader { geo in
@@ -62,6 +63,8 @@ struct ContentView: View {
             actionBar
             statusBar
         }
+        // The inspector pane swaps between one-clip and batch views; keep the keyboard on the table when that happens.
+        .onChange(of: s.selection.count > 1) { _, _ in DispatchQueue.main.async { listFocus = true } }
     }
     func demoIdx(_ c: Clip) -> Int? { s.demo ? s.clips.firstIndex { $0.id == c.id } : nil }
     func clipCell(_ c: Clip) -> some View {
@@ -85,6 +88,7 @@ struct ContentView: View {
             TableColumn(L.t("col.tc")) { c in tcCell(c) }.width(min: 100, ideal: 104)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: false))
+        .focused($listFocus)
     }
     /// Narrow layout: clip name, gamut/curve pair and the complete timecode stay visible.
     var narrowTable: some View {
@@ -94,6 +98,7 @@ struct ContentView: View {
             TableColumn(L.t("col.tc")) { c in tcCell(c) }.width(min: 100, ideal: 104)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: false))
+        .focused($listFocus)
     }
 
     var n: Int { s.selection.count }
@@ -111,14 +116,14 @@ struct ContentView: View {
                 if s.busy { ProgressView().controlSize(.small); Text(L.t("op.running")).font(.caption).foregroundStyle(.secondary) }
             }
             HStack(spacing: 8) {
-                Button(L.t("act.accept")) { let sk = s.acceptDetected(s.selection); if sk > 0 { exportMsg = L.f("batch.skipped", sk) } }.accessibilityLabel(L.t("act.accept"))
+                Button(L.t("act.accept")) { let sk = s.acceptDetected(s.selection); if sk > 0 { exportMsg = L.f("batch.skipped", sk) } }
                     .disabled(n == 0).help(L.t("act.accept.help"))
-                Button(L.t("act.revoke")) { s.revoke(s.selection) }.disabled(!s.selection.contains { s.confirmedBase[$0] != nil }).accessibilityLabel(L.t("act.revoke"))
+                Button(L.t("act.revoke")) { s.revoke(s.selection) }.disabled(!s.selection.contains { s.confirmedBase[$0] != nil })
                 Spacer()
             }
             HStack(spacing: 8) {
-                Button(L.t("act.remove")) { s.removeSelected() }.disabled(n == 0).help(L.t("act.remove.help")).accessibilityLabel(L.t("act.remove"))
-                Button(L.t("clear.list")) { s.clearList() }.help(L.t("act.clear.help")).accessibilityLabel(L.t("clear.list"))
+                Button(L.t("act.remove")) { s.removeSelected() }.disabled(n == 0).help(L.t("act.remove.help"))
+                Button(L.t("clear.list")) { s.clearList() }.help(L.t("act.clear.help"))
                 Spacer()
             }
             HStack(spacing: 8) {
@@ -130,7 +135,6 @@ struct ContentView: View {
                     .disabled(n == 0 || s.busy).fixedSize()
                 Button { s.showResolve = true; Task { await s.loadResolvePlan() } } label: { Label(n == 0 ? L.t("resolve.send") : n == 1 ? L.t("act.send.1") : L.f("act.send.n", n), systemImage: "paperplane.fill").font(.callout.weight(.semibold)) }
                     .buttonStyle(.borderedProminent).tint(Theme.accent).disabled(n == 0 || s.busy)
-                    .accessibilityLabel(n == 0 ? L.t("resolve.send") : n == 1 ? L.t("act.send.1") : L.f("act.send.n", n))
                 Spacer()
             }
         }

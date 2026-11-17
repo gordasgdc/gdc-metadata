@@ -63,7 +63,7 @@ struct PreviewSheet: View {
                 Text(clip.value("timecode") ?? "").font(.system(.body, design: .monospaced)).foregroundStyle(.secondary)
                 Text(L.t("preview.note")).font(.caption).foregroundStyle(.tertiary).lineLimit(1)
                 Spacer()
-                Button(L.t("close")) { dismiss() }.keyboardShortcut(.cancelAction).accessibilityLabel(L.t("close"))
+                Button(L.t("close")) { dismiss() }.keyboardShortcut(.cancelAction)
             }.padding(10).background(Theme.surface)
         }
         .frame(minWidth: 720, idealWidth: 1100, minHeight: 460, idealHeight: 680)
