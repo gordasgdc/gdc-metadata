@@ -202,6 +202,10 @@ struct PairCell: View {
             if pair.state == .none { Text(L.t("pair.none")).foregroundStyle(.tertiary) }
             else { Text([pair.gamut, pair.curve].map { $0 ?? "—" }.joined(separator: " / ")).lineLimit(1).truncationMode(.tail) }
         }.help(L.t(key))
+        // VoiceOver: one element, "<gamut / curve>, <state>" — the bare symbol would otherwise be announced as "Show"/"Remove".
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(pair.state == .none ? L.t("pair.none") : [pair.gamut, pair.curve].map { $0 ?? "—" }.joined(separator: " / "))
+        .accessibilityValue(pair.state == .none ? "" : L.t(key))
     }
 }
 
